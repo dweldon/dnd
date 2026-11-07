@@ -9,6 +9,7 @@ import type { ClientMessage, ServerMessage } from './messages';
 type Socket = ServerWebSocket<{ token: string }>;
 
 const { PORT, NODE_ENV } = process.env;
+const ART = `${import.meta.dir}/client/art`;
 
 let game = newGame();
 // True while the DM handles a chat message
@@ -79,6 +80,13 @@ const server = Bun.serve({
       const token = new URL(req.url).searchParams.get('token') ?? '';
       if (server.upgrade(req, { data: { token } })) return;
       return new Response('Upgrade failed', { status: 400 });
+    },
+    // pathname is normalized, so '..' can't escape the art dir
+    '/art/*': async (req) => {
+      const file = Bun.file(`${ART}${new URL(req.url).pathname.slice(4)}`);
+      if (!(await file.exists()))
+        return new Response('Not found', { status: 404 });
+      return new Response(file);
     },
     '/*': index,
   },

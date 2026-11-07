@@ -280,6 +280,15 @@ function move(state: GameState, player: Player, dir: Dir) {
   }
 }
 
+// Directions the party can move from here
+export function exits(state: GameState): Dir[] {
+  const room = roomAt(state.pos);
+  return (Object.keys(DIRS) as Dir[]).filter((dir) => {
+    const p = room ? exitOf(state, room, DIRS[dir]) : add(state.pos, DIRS[dir]);
+    return p !== undefined && isOpen(state, p);
+  });
+}
+
 // The open door on one side of a room
 function exitOf(state: GameState, room: Room, d: Pos) {
   const { x, y, w, h } = room.rect;

@@ -8,3 +8,43 @@
 .pixel {
   image-rendering: pixelated;
 }
+
+/* Amber pulse around the screen when your turn starts */
+@keyframes turn-flash {
+  0%,
+  50%,
+  100% {
+    opacity: 0;
+  }
+  20%,
+  70% {
+    opacity: 1;
+  }
+}
+.turn-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  box-shadow:
+    inset 0 0 0 6px var(--color-amber-400),
+    inset 0 0 120px var(--color-amber-400);
+  background: color-mix(in oklab, var(--color-amber-400) 12%, transparent);
+  animation: turn-flash 1.4s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn-flash {
+    animation-duration: 0.01s;
+  }
+}
+
+/* Red flash behind a portrait when the character takes damage */
+@keyframes hurt-flash {
+  0%,
+  40% {
+    background-color: var(--color-red-600);
+  }
+}
+.hurt-flash {
+  animation: hurt-flash 0.8s ease-out;
+}

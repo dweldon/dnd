@@ -29,22 +29,37 @@ export function Panel({
   );
 }
 
+// Counts HP drops so a flash can replay on each hit
+function useHits(hp: number | undefined) {
+  const prev = useRef(hp);
+  const [hits, setHits] = useState(0);
+  useEffect(() => {
+    if (hp !== undefined && prev.current !== undefined && hp < prev.current) {
+      setHits((h) => h + 1);
+    }
+    prev.current = hp;
+  }, [hp]);
+  return hits;
+}
+
 export function Portrait({
   src,
   size,
-  down = false,
+  hp,
 }: {
   src: string;
   size: number;
-  down?: boolean;
+  hp?: number;
 }) {
+  const hits = useHits(hp);
   return (
     <img
+      key={hits}
       src={art(src)}
       alt=""
       width={size}
       height={size}
-      className={`pixel shrink-0 self-start rounded border border-stone-700 bg-stone-800 ${down ? 'opacity-50 grayscale' : ''}`}
+      className={`pixel shrink-0 self-start rounded border border-stone-700 bg-stone-800 ${hp === 0 ? 'opacity-50 grayscale' : ''} ${hits ? 'hurt-flash' : ''}`}
     />
   );
 }

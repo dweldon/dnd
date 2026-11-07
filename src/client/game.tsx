@@ -25,8 +25,16 @@ type Props = {
 export function Game({ view, thinking, error, send }: Props) {
   const myTurn = view.turn === view.you;
   const canAct = myTurn && !thinking;
+
+  // Flag the browser tab so players in other tabs notice
+  useEffect(() => {
+    document.title = myTurn ? `⚔ Your turn! · ${TITLE}` : TITLE;
+  }, [myTurn]);
+
   return (
     <div className="flex flex-col lg:h-screen">
+      {/* Keyed per turn so the flash replays each time */}
+      {myTurn && <div key={view.turnEndsAt} className="turn-flash" />}
       <Header view={view} thinking={thinking} send={send} />
       <div className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[17rem_auto_minmax(20rem,1fr)]">
         <div className="min-h-0 space-y-3 overflow-y-auto">
@@ -117,7 +125,7 @@ function You({ view }: { view: View }) {
   return (
     <Panel title="You">
       <div className="flex gap-3">
-        <Portrait src={c.portrait} size={96} down={me.hp === 0} />
+        <Portrait src={c.portrait} size={96} hp={me.hp} />
         <div className="min-w-0 flex-1 space-y-1">
           <div className="leading-tight font-semibold">{c.name}</div>
           <div className="text-xs text-amber-200/80">
@@ -209,7 +217,7 @@ function Party({ view }: { view: View }) {
               key={p.characterId}
               className={`flex items-center gap-2 rounded p-1 ${active ? 'bg-amber-500/10 ring-1 ring-amber-400' : ''}`}
             >
-              <Portrait src={c.portrait} size={40} down={p.hp === 0} />
+              <Portrait src={c.portrait} size={40} hp={p.hp} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-sm">
                   <span className="truncate">{p.name}</span>

@@ -253,6 +253,11 @@ function Room({ view }: { view: View }) {
           {room.hint && (
             <p className="mt-1 text-xs text-sky-300/80 italic">{room.hint}</p>
           )}
+          {room.riddle && (
+            <p className="mt-1 text-xs text-amber-300/90">
+              Riddle: {room.riddle}
+            </p>
+          )}
         </>
       ) : (
         <p className="text-xs text-stone-400">A twisty stone passage.</p>

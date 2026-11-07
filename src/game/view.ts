@@ -34,6 +34,9 @@ export function view(state: GameState, token: string) {
           name: room.name,
           description: room.description,
           hint: room.hint ?? null,
+          riddle: state.rooms[room.id]?.solved
+            ? null
+            : (room.riddle?.question ?? null),
           monsters: alive(state).map((m) => ({
             id: m.id,
             name: m.name,

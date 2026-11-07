@@ -1,6 +1,6 @@
 import type { ItemId } from './items';
 import type { MonsterId } from './monsters';
-import type { Pos } from './types';
+import type { Effect, Pos } from './types';
 
 // '#' wall, '.' floor, '+' door, 'S' secret door (looks like wall until found)
 export type Tile = '#' | '.' | '+' | 'S';
@@ -14,6 +14,10 @@ export type Room = {
   // Clue pointing at this room's secret door
   hint?: string;
   secret?: { door: Pos; dc: number };
+  // One-off interaction, e.g. eating cookies
+  feature?: { name: string; effect: Effect };
+  // Solved once; answers are lowercase single words
+  riddle?: { question: string; answers: string[]; reward: ItemId[] };
   monsters: MonsterId[];
   loot: ItemId[];
   safe?: boolean;
@@ -89,6 +93,10 @@ export const ROOMS: Room[] = [
       'A wide cavern full of mushrooms glowing soft blue and purple. Some of them hum quietly to themselves. One looks suspiciously like a tiny armchair. A passage leads north.',
     hint: 'The mushrooms by the east wall all lean the same way, as if a steady draft were pushing them.',
     secret: { door: { x: 36, y: 26 }, dc: 13 },
+    feature: {
+      name: 'Mushroom Armchair',
+      effect: { kind: 'heal', dice: '2d6', area: 'self' },
+    },
     monsters: [],
     loot: [],
   },
@@ -156,9 +164,14 @@ export const ROOMS: Room[] = [
     name: 'Library of Overdue Books',
     rect: { x: 16, y: 2, w: 7, h: 6 },
     description:
-      "Towering shelves of books, all overdue by centuries. The goblin librarian's desk holds a single rubber stamp that only says 'NO.' Passages lead west and east.",
+      "Towering shelves of books, all overdue by centuries. The goblin librarian's desk holds a single rubber stamp that only says 'NO.' A talking book on the desk clears its spine and offers a prize for answering its riddle. Passages lead west and east.",
     hint: "A cold draft blows from under the bookshelf on the south wall, where one book titled 'Definitely Not a Lever' sticks out.",
     secret: { door: { x: 19, y: 8 }, dc: 14 },
+    riddle: {
+      question: 'What has many keys but cannot open a single lock?',
+      answers: ['piano', 'keyboard', 'keyboards', 'pianos'],
+      reward: ['fizzbang-bomb', 'healing-potion'],
+    },
     monsters: [],
     loot: [],
   },
@@ -187,6 +200,10 @@ export const ROOMS: Room[] = [
     rect: { x: 39, y: 2, w: 7, h: 5 },
     description:
       "Uncomfortable chairs, a ticket machine and a sign reading 'NOW SERVING: 3.' Someone left out a plate of cookies. Loud slurping echoes from a door to the south. It feels oddly safe here. Passages lead west and south.",
+    feature: {
+      name: 'Plate of Cookies',
+      effect: { kind: 'heal', dice: '1d6', area: 'party' },
+    },
     monsters: [],
     loot: [],
     safe: true,

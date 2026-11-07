@@ -38,7 +38,10 @@ export type GameState = {
   // Copy of TILES; a found secret door becomes '+'
   tiles: Tile[][];
   revealed: Set<string>;
-  rooms: Record<string, { monsters: MonsterState[]; loot: ItemId[] }>;
+  rooms: Record<
+    string,
+    { monsters: MonsterState[]; loot: ItemId[]; used: boolean; solved: boolean }
+  >;
   // Where the party wakes after a wipe
   lastSafe: Pos;
   // Compact actions list
@@ -54,6 +57,8 @@ export type Action =
   | { type: 'attack'; target?: string }
   | { type: 'ability'; ability: string; target?: string }
   | { type: 'search' }
+  | { type: 'interact' }
+  | { type: 'answer'; answer: string }
   | { type: 'use'; item: ItemId; target?: string }
   | { type: 'revive'; target: CharacterId }
   | { type: 'skip' };
@@ -98,7 +103,12 @@ export function alive(state: GameState) {
 export function newGame(): GameState {
   const rooms: GameState['rooms'] = {};
   for (const room of ROOMS) {
-    rooms[room.id] = { monsters: spawn(room), loot: [...room.loot] };
+    rooms[room.id] = {
+      monsters: spawn(room),
+      loot: [...room.loot],
+      used: false,
+      solved: false,
+    };
   }
   return {
     phase: 'lobby',
@@ -233,6 +243,22 @@ function resolve(state: GameState, player: Player, action: Action) {
     }
     case 'search':
       search(state, player);
+      break;
+    case 'interact': {
+      const { room, rs } = here(state);
+      if (!room.feature || rs.used) fail("There's nothing to use here.");
+      applyEffect(
+        state,
+        player,
+        room.feature.effect,
+        undefined,
+        room.feature.name,
+      );
+      rs.used = true;
+      break;
+    }
+    case 'answer':
+      answer(state, player, action.answer);
       break;
     case 'use': {
       const i = player.items.indexOf(action.item);
@@ -461,6 +487,32 @@ function search(state: GameState, player: Player) {
   } else {
     state.log.push(`${player.name} searches (rolled ${n}): nothing found.`);
   }
+}
+
+// The party's room and its state
+function here(state: GameState) {
+  const room = roomAt(state.pos) ?? fail("You're in a corridor.");
+  return { room, rs: state.rooms[room.id] as GameState['rooms'][string] };
+}
+
+function answer(state: GameState, player: Player, text: string) {
+  const { room, rs } = here(state);
+  const riddle = room.riddle;
+  if (!riddle || rs.solved) fail("There's no riddle here.");
+  const words =
+    String(text ?? '')
+      .toLowerCase()
+      .match(/[a-z]+/g) ?? [];
+  if (!words.some((w) => riddle.answers.includes(w))) {
+    state.log.push(`${player.name} answers "${text}": wrong!`);
+    return;
+  }
+  rs.solved = true;
+  player.items.push(...riddle.reward);
+  const names = riddle.reward.map((i) => ITEMS[i].name).join(', ');
+  state.log.push(
+    `${player.name} answers "${text}": correct! Reward: ${names}.`,
+  );
 }
 
 function endCombat(state: GameState, player: Player) {

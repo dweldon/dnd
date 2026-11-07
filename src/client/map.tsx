@@ -41,7 +41,7 @@ export function DungeonMap({ view }: { view: View }) {
           src={art('token.svg')}
           alt="Party"
           className="pixel absolute drop-shadow-[0_0_4px_rgba(251,191,36,0.9)] transition-all duration-500"
-          style={cell(view.pos.x, view.pos.y)}
+          style={cell(view.marker.x, view.marker.y)}
         />
       </div>
     </div>

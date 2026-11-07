@@ -9,7 +9,13 @@ export function view(state: GameState, token: string) {
     you: state.players.find((p) => p.token === token)?.characterId ?? null,
     turn: state.players[state.turn]?.characterId ?? null,
     turnEndsAt: state.turnEndsAt,
-    pos: state.pos,
+    // Where to draw the party: room center, else the corridor tile
+    marker: room
+      ? {
+          x: room.rect.x + (room.rect.w - 1) / 2,
+          y: room.rect.y + (room.rect.h - 1) / 2,
+        }
+      : state.pos,
     exits: state.phase === 'playing' ? exits(state) : [],
     players: state.players.map((p) => ({
       characterId: p.characterId,

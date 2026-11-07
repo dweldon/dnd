@@ -1,1 +1,1 @@
-console.log("Are you ready for an adventure?!");
+console.log('Are you ready for an adventure?!');

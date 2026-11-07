@@ -1,4 +1,4 @@
-import { alive, type GameState, hero, key, roomAt } from './engine';
+import { alive, exits, type GameState, hero, key, roomAt } from './engine';
 import { MONSTERS } from './monsters';
 
 // What one player may see: no tokens, no fogged tiles, no secret doors
@@ -10,6 +10,7 @@ export function view(state: GameState, token: string) {
     turn: state.players[state.turn]?.characterId ?? null,
     turnEndsAt: state.turnEndsAt,
     pos: state.pos,
+    exits: state.phase === 'playing' ? exits(state) : [],
     players: state.players.map((p) => ({
       characterId: p.characterId,
       name: p.name,

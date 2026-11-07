@@ -10,6 +10,7 @@ export const TURN_MS = 120_000;
 
 export type Player = {
   token: string;
+  // The hero's name
   name: string;
   characterId: CharacterId;
   hp: number;
@@ -133,11 +134,8 @@ function spawn(room: Room): MonsterState[] {
 
 export function join(
   state: GameState,
-  name: string,
   characterId: string,
 ): { ok: true; token: string } | Fail {
-  const trimmed = name.trim().slice(0, 20);
-  if (!trimmed) return { ok: false, error: 'Please enter a name.' };
   if (!Object.hasOwn(CHARACTERS, characterId)) {
     return { ok: false, error: 'Unknown character.' };
   }
@@ -150,14 +148,14 @@ export function join(
   const token = crypto.randomUUID();
   state.players.push({
     token,
-    name: trimmed,
+    name: c.name,
     characterId: id,
     hp: c.maxHp,
     cooldowns: {},
     items: [...c.items],
     bonus: { ac: 0, attack: 0, damage: 0 },
   });
-  if (state.phase === 'playing') state.log.push(`${trimmed} joins the party.`);
+  if (state.phase === 'playing') state.log.push(`${c.name} joins the party.`);
   return { ok: true, token };
 }
 

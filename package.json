@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "lint": "biome check --write --unsafe",
-    "type-check": "bun check"
+    "type-check": "bun check && bun check src/client"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

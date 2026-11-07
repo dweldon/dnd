@@ -76,6 +76,8 @@ const server = Bun.serve({
   port: Number(PORT) || 3000,
   development: NODE_ENV !== 'production',
   routes: {
+    // Render health check
+    '/ping': new Response('pong'),
     '/ws': (req, server) => {
       const token = new URL(req.url).searchParams.get('token') ?? '';
       if (server.upgrade(req, { data: { token } })) return;

@@ -2,7 +2,7 @@ import { driver } from 'driver.js';
 
 const KEY = 'tour-seen';
 
-// Shows once per browser; any close counts as seen. Returns a cleanup.
+// Shows once per browser; can't be dismissed, only finished. Returns a cleanup.
 export function startTour(): (() => void) | undefined {
   try {
     if (localStorage.getItem(KEY)) return;
@@ -12,14 +12,15 @@ export function startTour(): (() => void) | undefined {
   const tour = driver({
     popoverClass: 'dnd-tour',
     showProgress: true,
+    // No ✕, Esc, or overlay click; Done on the last step still ends it
+    allowClose: false,
     // Look, don't touch: keeps Send and drags out of the tour
     disableActiveInteraction: true,
     steps: [
       {
         popover: {
           title: 'Quick tour',
-          description:
-            "New here? Here's a 30-second look around. Close anytime with ✕.",
+          description: "New here? Here's a 30-second look around.",
         },
       },
       {

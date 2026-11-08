@@ -205,7 +205,7 @@ export function snapshot(state: GameState, player: Player, withLog = true) {
           monsters: alive(state).map((m) => ({
             id: m.id,
             name: m.name,
-            hp: `${m.hp}/${MONSTERS[m.type].maxHp}`,
+            hp: `${m.hp}/${m.maxHp}`,
             ...(m.stunned && { stunned: true }),
           })),
         }

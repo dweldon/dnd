@@ -25,6 +25,7 @@ export type MonsterState = {
   type: MonsterId;
   name: string;
   hp: number;
+  maxHp: number;
   acPenalty: number;
   stunned: boolean;
 };
@@ -40,10 +41,19 @@ export type GameState = {
   revealed: Set<string>;
   rooms: Record<
     string,
-    { monsters: MonsterState[]; loot: ItemId[]; used: boolean; solved: boolean }
+    {
+      monsters: MonsterState[];
+      loot: ItemId[];
+      used: boolean;
+      solved: boolean;
+      // Monsters spawn on first entry
+      visited: boolean;
+    }
   >;
   // Where the party wakes after a wipe
   lastSafe: Pos;
+  // Monster damage multiplier, set by party size on entering a room
+  dmgScale: number;
   // Compact actions list
   log: string[];
   // DM log, written by the server
@@ -85,7 +95,7 @@ const isOpen = (state: GameState, p: Pos) =>
   ['.', '+'].includes(tileAt(state, p));
 
 export const hero = (p: Player): Character => CHARACTERS[p.characterId];
-const kind = (m: MonsterState): Monster => MONSTERS[m.type];
+export const kind = (m: MonsterState): Monster => MONSTERS[m.type];
 
 export const roomAt = (p: Pos) =>
   ROOMS.find(
@@ -104,10 +114,11 @@ export function newGame(): GameState {
   const rooms: GameState['rooms'] = {};
   for (const room of ROOMS) {
     rooms[room.id] = {
-      monsters: spawn(room),
+      monsters: [],
       loot: [...room.loot],
       used: false,
       solved: false,
+      visited: false,
     };
   }
   return {
@@ -120,22 +131,29 @@ export function newGame(): GameState {
     revealed: new Set(),
     rooms,
     lastSafe: { ...START },
+    dmgScale: 1,
     log: [],
     chat: [],
   };
 }
 
+// Monster scaling by party size on room entry, anchored on 6 (tuned with scripts/sim.ts)
+// hp = sqrt(size / 6); dmg is tuned, cut harder for 2 since one down risks a wipe
+const DMG_SCALE: Record<number, number> = { 2: 0.36, 3: 0.63, 4: 0.78, 5: 0.9 };
+
 // Numbers duplicates, e.g. 'goblin-2' / 'Goblin 2'
-function spawn(room: Room): MonsterState[] {
+function spawn(room: Room, hpScale = 1): MonsterState[] {
   return room.monsters.map((type, i) => {
     const m: Monster = MONSTERS[type];
     const total = room.monsters.filter((t) => t === type).length;
     const n = room.monsters.slice(0, i + 1).filter((t) => t === type).length;
+    const maxHp = Math.round(m.maxHp * hpScale);
     return {
       id: total > 1 ? `${type}-${n}` : type,
       type,
       name: total > 1 ? `${m.name} ${n}` : m.name,
-      hp: m.maxHp,
+      hp: maxHp,
+      maxHp,
       acPenalty: 0,
       stunned: false,
     };
@@ -365,6 +383,16 @@ function enter(state: GameState, player?: Player) {
       revealAround(state, p);
     }
   }
+  // Scale to whoever is here now, so late joiners count
+  const rs = state.rooms[room.id];
+  if (rs && !rs.visited) {
+    rs.visited = true;
+    if (room.monsters.length) {
+      const size = state.players.length;
+      rs.monsters = spawn(room, Math.min(1, Math.sqrt(size / 6)));
+      state.dmgScale = DMG_SCALE[size] ?? 1;
+    }
+  }
   if (room.safe) {
     state.lastSafe = { x: x + Math.floor(w / 2), y: y + Math.floor(h / 2) };
   }
@@ -574,7 +602,7 @@ function monsterPhase(state: GameState, narration: string[]) {
       if (!standing.length) break;
       const p = pick(standing);
       const hit = d20() + t.attack.bonus >= hero(p).ac + p.bonus.ac;
-      const dmg = hit ? roll(t.attack.damage) : 0;
+      const dmg = hit ? Math.round(roll(t.attack.damage) * state.dmgScale) : 0;
       p.hp = Math.max(0, p.hp - dmg);
       state.log.push(
         `${m.name} attacks ${p.name}: ${hit ? `hit, ${dmg} dmg` : 'miss'}`,

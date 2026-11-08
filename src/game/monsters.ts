@@ -19,9 +19,9 @@ export const MONSTERS = {
   goblin: {
     name: 'Goblin',
     description: 'A scrappy green goblin with a rusty spoon and big opinions.',
-    maxHp: 9,
+    maxHp: 34,
     ac: 13,
-    attack: { bonus: 4, damage: '1d6+2' },
+    attack: { bonus: 6, damage: '2d6+5' },
     hitLines: [
       '{monster} bonks {target} with a rusty spoon for {damage} damage.',
       '{monster} kicks {target} in the shin for {damage} damage, then cackles.',
@@ -37,9 +37,9 @@ export const MONSTERS = {
     name: 'Goblin Archer',
     description:
       'A squinty goblin with a bent bow and a quiver of mismatched arrows.',
-    maxHp: 8,
+    maxHp: 16,
     ac: 12,
-    attack: { bonus: 5, damage: '1d8+2' },
+    attack: { bonus: 5, damage: '1d8+3' },
     hitLines: [
       '{monster} plinks an arrow into {target} for {damage} damage.',
       '{monster} fires a suction-cup arrow that somehow still hurts {target} for {damage} damage.',
@@ -55,9 +55,9 @@ export const MONSTERS = {
     name: 'Green Slime',
     description:
       'A wobbly blob of green goo. Squishy, sticky and surprisingly tough.',
-    maxHp: 20,
+    maxHp: 60,
     ac: 8,
-    attack: { bonus: 3, damage: '1d8+1' },
+    attack: { bonus: 4, damage: '2d8+4' },
     hitLines: [
       '{monster} splats onto {target} for {damage} damage. Ew.',
       '{monster} slurps at {target} with sticky goo for {damage} damage.',
@@ -72,9 +72,9 @@ export const MONSTERS = {
   skeleton: {
     name: 'Skeleton',
     description: 'A rattly skeleton who is a sore loser at cards.',
-    maxHp: 13,
+    maxHp: 36,
     ac: 13,
-    attack: { bonus: 4, damage: '1d6+2' },
+    attack: { bonus: 6, damage: '2d6+4' },
     hitLines: [
       '{monster} whacks {target} with its own femur for {damage} damage.',
       '{monster} rattles menacingly and slashes {target} for {damage} damage.',
@@ -89,9 +89,9 @@ export const MONSTERS = {
   'giant-rat': {
     name: 'Giant Rat',
     description: 'A goblin pet rat the size of a corgi. Very hungry.',
-    maxHp: 6,
+    maxHp: 14,
     ac: 12,
-    attack: { bonus: 4, damage: '1d4+2' },
+    attack: { bonus: 5, damage: '1d6+3' },
     hitLines: [
       '{monster} nibbles {target} for {damage} damage.',
       "{monster} scurries up {target}'s leg and bites for {damage} damage.",
@@ -106,9 +106,9 @@ export const MONSTERS = {
     name: 'Goblin Honor Guard',
     description:
       'A big goblin in polished pot-lid armor who takes their job very seriously.',
-    maxHp: 16,
+    maxHp: 40,
     ac: 15,
-    attack: { bonus: 5, damage: '1d8+3' },
+    attack: { bonus: 6, damage: '2d6+5' },
     hitLines: [
       '{monster} thwacks {target} with a ceremonial halberd for {damage} damage.',
       '{monster} shield-shoves {target} for {damage} damage and shouts "For the King!"',
@@ -124,9 +124,9 @@ export const MONSTERS = {
     name: 'Grizzlebeans, the Goblin King',
     description:
       "A wide-eyed, twitching goblin king, supercharged by endless cups from the village's enchanted coffee pot.",
-    maxHp: 70,
+    maxHp: 140,
     ac: 15,
-    attack: { bonus: 6, damage: '2d6+3' },
+    attack: { bonus: 7, damage: '2d6+4' },
     attacks: 2,
     boss: true,
     hitLines: [

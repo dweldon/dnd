@@ -57,7 +57,7 @@ export function view(state: GameState, token: string) {
             id: m.id,
             name: m.name,
             hp: m.hp,
-            maxHp: MONSTERS[m.type].maxHp,
+            maxHp: m.maxHp,
             art: MONSTERS[m.type].art,
             stunned: m.stunned,
           })),

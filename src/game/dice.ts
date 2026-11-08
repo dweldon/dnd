@@ -4,8 +4,13 @@ const die = (sides: number) => Math.floor(Math.random() * sides) + 1;
 
 export const d20 = () => die(20);
 
-export function roll(dice: Dice): number {
+export function parse(dice: Dice) {
   const [count = 0, sides = 0, bonus = 0] = dice.split(/[d+]/).map(Number);
+  return { count, sides, bonus };
+}
+
+export function roll(dice: Dice): number {
+  const { count, sides, bonus } = parse(dice);
   let total = bonus;
   for (let i = 0; i < count; i++) total += die(sides);
   return total;

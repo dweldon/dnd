@@ -1,14 +1,21 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { CharacterId } from './game/characters';
-import { type Action, act, type Dir, type GameState } from './game/engine';
-import type { ItemId } from './game/items';
+import {
+  type Action,
+  act,
+  alive,
+  type Dir,
+  type GameState,
+  hero,
+} from './game/engine';
+import { ITEMS, type ItemId } from './game/items';
 import { VICTORY } from './game/story';
 import { SYSTEM, snapshot, TOOLS } from './prompt';
 
 const MODEL = 'claude-sonnet-5-5';
 
 const HELP =
-  'Try: move <north|south|east|west>, attack [target], cast <ability> [target], search, interact, answer <words>, use <item> [target], revive <hero>, or skip.';
+  'Try: move <north|south|east|west>, attack [target], cast <ability> [on target], search, interact, answer <words>, use <item> [on target], revive <hero>, or skip.';
 
 const DIRS = ['north', 'south', 'east', 'west'];
 
@@ -18,28 +25,75 @@ const client = ANTHROPIC_KEY ? new Anthropic({ apiKey: ANTHROPIC_KEY }) : null;
 type Messages = Anthropic.Beta.BetaMessageParam[];
 type ActResult = { lines: string[]; narration: string[] };
 
-// Keyword parser used without an API key or when the AI fails
-function parse(text: string): Action | null {
-  const [verb, a, b, ...rest] = text.trim().toLowerCase().split(/\s+/);
+type Named = { id: string; name: string };
+
+// Id of the option whose name or id appears in the text, longest first
+function match(text: string, options: Named[]) {
+  let best: Named | undefined;
+  let len = 0;
+  for (const o of options) {
+    for (const n of [o.name, o.id]) {
+      const l = n.toLowerCase();
+      if (l.length > len && text.includes(l)) {
+        best = o;
+        len = l.length;
+      }
+    }
+  }
+  return best?.id;
+}
+
+// Unknown names pass through so the engine rejects them instead of guessing
+const named = (text: string, options: Named[]) =>
+  match(text, options) ?? (text || undefined);
+
+// Keyword parser used without an API key or when the AI fails.
+// Accepts names ("use Potion of Healing on Pip Lightfingers") or ids.
+function parse(state: GameState, text: string): Action | null {
+  const [verb = '', ...words] = text.trim().toLowerCase().split(/\s+/);
+  const rest = words.join(' ');
+  // "<ability or item> on <target>"
+  const [what = '', on] = rest.split(' on ');
+  const player = state.players[state.turn];
+  const foes: Named[] = alive(state);
+  const allies: Named[] = state.players.map((p) => ({
+    id: p.characterId,
+    name: p.name,
+  }));
+  const anyone = [...foes, ...allies];
   switch (verb) {
     case 'move':
     case 'go':
-      return a && DIRS.includes(a) ? { type: 'move', dir: a as Dir } : null;
+      return DIRS.includes(rest) ? { type: 'move', dir: rest as Dir } : null;
     case 'attack':
-      return { type: 'attack', target: a };
+      return { type: 'attack', target: named(rest, foes) };
     case 'cast':
-    case 'ability':
-      return a ? { type: 'ability', ability: a, target: b } : null;
+    case 'ability': {
+      const ability = player && match(what, hero(player).abilities);
+      return ability
+        ? { type: 'ability', ability, target: on && named(on, anyone) }
+        : null;
+    }
     case 'search':
       return { type: 'search' };
     case 'interact':
       return { type: 'interact' };
     case 'answer':
-      return a ? { type: 'answer', answer: [a, b, ...rest].join(' ') } : null;
-    case 'use':
-      return a ? { type: 'use', item: a as ItemId, target: b } : null;
-    case 'revive':
-      return a ? { type: 'revive', target: a as CharacterId } : null;
+      return rest ? { type: 'answer', answer: rest } : null;
+    case 'use': {
+      const items = (player?.items ?? []).map((id) => ({
+        id,
+        name: ITEMS[id].name,
+      }));
+      const item = match(what, items) as ItemId | undefined;
+      return item
+        ? { type: 'use', item, target: on && named(on, anyone) }
+        : null;
+    }
+    case 'revive': {
+      const target = match(rest, allies) as CharacterId | undefined;
+      return target ? { type: 'revive', target } : null;
+    }
     case 'skip':
       return { type: 'skip' };
     default:
@@ -107,14 +161,15 @@ export async function respond(state: GameState, token: string, text: string) {
       content: `State: ${snapshot(state, player)}\n\n${player.name}'s player says: ${text}`,
     },
   ];
-  const reply = await ask(prompt, {
-    type: 'auto',
-    disable_parallel_tool_use: true,
-  });
+  const parsed = parse(state, text);
+  // Clean moves skip the AI
+  const reply =
+    parsed?.type === 'move'
+      ? null
+      : await ask(prompt, { type: 'auto', disable_parallel_tool_use: true });
 
   if (!reply) {
-    const action = parse(text);
-    const result = action ? act(state, token, action) : null;
+    const result = parsed ? act(state, token, parsed) : null;
     if (!result) return say(HELP);
     if (!result.ok) return say(result.error);
     return report(result, '');

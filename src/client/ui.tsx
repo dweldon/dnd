@@ -1,4 +1,5 @@
 import {
+  type ComponentProps,
   type ReactNode,
   useEffect,
   useLayoutEffect,
@@ -162,6 +163,8 @@ export function Tooltip({
   stats,
   className = '',
   children,
+  onDragStart,
+  ...rest
 }: {
   title: string;
   icon?: string;
@@ -169,7 +172,7 @@ export function Tooltip({
   stats: string[];
   className?: string;
   children: ReactNode;
-}) {
+} & Omit<ComponentProps<'span'>, 'title'>) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const card = useRef<HTMLDivElement>(null);
 
@@ -189,9 +192,14 @@ export function Tooltip({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: hover-only info card
     <span
+      {...rest}
       className={className}
       onMouseEnter={(e) => setRect(e.currentTarget.getBoundingClientRect())}
       onMouseLeave={() => setRect(null)}
+      onDragStart={(e) => {
+        setRect(null);
+        onDragStart?.(e);
+      }}
     >
       {children}
       {rect && (

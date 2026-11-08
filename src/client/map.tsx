@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Dir } from '../game/engine';
 import type { View } from '../game/view';
 import { art, type Send } from './ui';
@@ -13,7 +14,8 @@ const TILE_ART: Record<string, string> = {
 const VIEW = 20 * TILE;
 
 // Circular window centered on the party, fading into the fog
-export function DungeonMap({ view }: { view: View }) {
+// Memoized: the draft re-renders Game on every keystroke
+export const DungeonMap = memo(function DungeonMap({ view }: { view: View }) {
   const width = (view.map[0]?.length ?? 0) * TILE;
   const height = view.map.length * TILE;
   const cell = (x: number, y: number) => ({
@@ -86,7 +88,7 @@ export function DungeonMap({ view }: { view: View }) {
       </div>
     </div>
   );
-}
+});
 
 const DIRS: { dir: Dir; label: string; area: string }[] = [
   { dir: 'north', label: 'N', area: 'col-start-2 row-start-1' },

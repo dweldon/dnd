@@ -1,7 +1,15 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import {
+  type DragEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { CHARACTERS, type Character } from '../game/characters';
 import { ITEMS, type Item } from '../game/items';
 import { TITLE } from '../game/story';
+import type { Effect } from '../game/types';
 import type { View } from '../game/view';
 import { Compass, DungeonMap } from './map';
 import {
@@ -24,9 +32,83 @@ type Props = {
   send: Send;
 };
 
+// Who a dragged command can be dropped on
+type Target = 'ally' | 'foe';
+type Drag = { command: string; on: Target };
+
+// Shared by panels that fill the chat box or take part in drag and drop
+type Shortcuts = {
+  fill: (text: string) => void;
+  drag: Drag | null;
+  setDrag: (drag: Drag | null) => void;
+};
+
+// Only single-target effects can be dragged onto someone
+function targetOf(effect: Effect): Target | null {
+  if (effect.kind === 'weaken') return 'foe';
+  if (effect.kind === 'heal' && effect.area === 'one') return 'ally';
+  if (effect.kind === 'damage' && effect.area === 'one') return 'foe';
+  return null;
+}
+
+const dropText = (command: string, name: string) =>
+  command === 'attack' ? `attack ${name}` : `${command} on ${name}`;
+
+const clickable = 'cursor-pointer select-none';
+
+// Handlers for something you can double-click or drag
+function source(
+  { fill, setDrag }: Shortcuts,
+  command: string,
+  on: Target | null,
+  ready = true,
+) {
+  if (!ready) return { className: 'cursor-not-allowed select-none' };
+  return {
+    className: clickable,
+    onDoubleClick: () => fill(command),
+    draggable: !!on,
+    onDragStart: (e: DragEvent) => {
+      e.dataTransfer.setData('text/plain', command); // Firefox needs data to drag
+      if (on) setDrag({ command, on });
+    },
+    onDragEnd: () => setDrag(null),
+  };
+}
+
+// Handlers and highlight for something you can drop on
+function dropZone({ fill, drag }: Shortcuts, on: Target, name: string) {
+  if (drag?.on !== on) return { className: '' };
+  return {
+    className: 'bg-sky-500/10 ring-2 ring-sky-400',
+    onDragOver: (e: DragEvent) => e.preventDefault(),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      fill(dropText(drag.command, name));
+    },
+  };
+}
+
 export function Game({ view, thinking, error, send }: Props) {
   const myTurn = view.turn === view.you;
   const canAct = myTurn && !thinking;
+  const [draft, setDraft] = useState('');
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  // Replace the draft and focus the box with the cursor at the end
+  const fill = (text: string) => {
+    setDraft(text);
+    requestAnimationFrame(() => {
+      input.current?.focus();
+      input.current?.setSelectionRange(text.length, text.length);
+    });
+  };
+  const sc: Shortcuts = { fill, drag, setDrag };
+
+  useEffect(() => {
+    if (canAct) input.current?.focus();
+  }, [canAct]);
 
   // Flag the browser tab so players in other tabs notice
   useEffect(() => {
@@ -40,14 +122,14 @@ export function Game({ view, thinking, error, send }: Props) {
       <Header view={view} thinking={thinking} send={send} />
       <div className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[17rem_auto_minmax(20rem,1fr)]">
         <div className="min-h-0 space-y-3 overflow-y-auto">
-          <You view={view} />
-          <Party view={view} />
+          <You view={view} sc={sc} />
+          <Party view={view} sc={sc} />
         </div>
         <div className="min-h-0 space-y-3 overflow-y-auto">
           <Panel title="Map">
             <DungeonMap view={view} />
           </Panel>
-          <Room view={view} />
+          <Room view={view} sc={sc} />
         </div>
         <div className="flex min-h-0 flex-col gap-3">
           <Chat
@@ -56,6 +138,10 @@ export function Game({ view, thinking, error, send }: Props) {
             error={error}
             send={send}
             myTurn={myTurn}
+            draft={draft}
+            setDraft={setDraft}
+            input={input}
+            fill={fill}
           />
           <Panel title="Compass" className="shrink-0">
             <Compass view={view} canAct={canAct} send={send} />
@@ -111,11 +197,12 @@ function Header({
 }
 
 // Your hero: HP, attack, abilities with cooldowns, items
-function You({ view }: { view: View }) {
+function You({ view, sc }: { view: View; sc: Shortcuts }) {
   const me = view.players.find((p) => p.characterId === view.you);
   if (!me) return null;
   const c: Character = CHARACTERS[me.characterId];
   const { bonus } = me;
+  const attack = source(sc, 'attack', 'foe');
   const gear = [
     bonus.ac && `+${bonus.ac} AC`,
     bonus.attack && `+${bonus.attack} to hit`,
@@ -140,6 +227,7 @@ function You({ view }: { view: View }) {
       <ul className="mt-3 space-y-1.5 text-sm">
         <li>
           <Tooltip
+            {...attack}
             title={c.attack.name}
             text="Your basic attack."
             stats={[
@@ -148,7 +236,7 @@ function You({ view }: { view: View }) {
               'One enemy',
               'Usable every turn',
             ]}
-            className="flex items-center justify-between gap-2"
+            className={`flex items-center justify-between gap-2 ${attack.className}`}
           >
             <span>
               {c.attack.name}{' '}
@@ -159,9 +247,11 @@ function You({ view }: { view: View }) {
         </li>
         {c.abilities.map((a) => {
           const wait = me.cooldowns[a.id] ?? 0;
+          const src = source(sc, `cast ${a.name}`, targetOf(a.effect), !wait);
           return (
             <li key={a.id}>
               <Tooltip
+                {...src}
                 title={a.name}
                 text={a.description}
                 stats={[
@@ -171,7 +261,7 @@ function You({ view }: { view: View }) {
                     ? `Ready in ${wait} turn${wait > 1 ? 's' : ''}`
                     : 'Ready now',
                 ]}
-                className="flex items-center justify-between gap-2"
+                className={`flex items-center justify-between gap-2 ${src.className}`}
               >
                 <span>{a.name}</span>
                 <Chip ready={!wait}>
@@ -186,8 +276,10 @@ function You({ view }: { view: View }) {
       <div className="mt-3 flex flex-wrap gap-2">
         {me.items.map((id, i) => {
           const item: Item = ITEMS[id];
+          const src = source(sc, `use ${item.name}`, targetOf(item.effect));
           return (
             <Tooltip
+              {...src}
               // biome-ignore lint/suspicious/noArrayIndexKey: items can repeat
               key={`${id}-${i}`}
               title={item.name}
@@ -197,7 +289,7 @@ function You({ view }: { view: View }) {
                 ...describeEffect(item.effect),
                 item.effect.kind === 'equip' ? 'Equip once' : 'Single use',
               ]}
-              className="flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs"
+              className={`flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs ${src.className}`}
             >
               <img
                 src={art(item.icon)}
@@ -231,24 +323,30 @@ function Chip({ ready, children }: { ready: boolean; children: ReactNode }) {
   );
 }
 
-function Party({ view }: { view: View }) {
+function Party({ view, sc }: { view: View; sc: Shortcuts }) {
   return (
     <Panel title="Party">
       <ul className="space-y-2">
         {view.players.map((p) => {
           const c: Character = CHARACTERS[p.characterId];
           const active = p.characterId === view.turn;
+          const zone = dropZone(sc, 'ally', p.name);
+          const down = p.hp === 0;
           return (
             <li
               key={p.characterId}
-              className={`flex items-center gap-2 rounded p-1 ${active ? 'bg-amber-500/10 ring-1 ring-amber-400' : ''}`}
+              {...zone}
+              onDoubleClick={
+                down ? () => sc.fill(`revive ${p.name}`) : undefined
+              }
+              className={`flex items-center gap-2 rounded p-1 ${zone.className || (active ? 'bg-amber-500/10 ring-1 ring-amber-400' : '')} ${down ? clickable : ''}`}
             >
               <Portrait src={c.portrait} size={40} hp={p.hp} />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-sm">
                   <span className="truncate">{p.name}</span>
                   {p.characterId === view.you && <Tag>You</Tag>}
-                  {p.hp === 0 && <Tag down>Down</Tag>}
+                  {down && <Tag down>Down</Tag>}
                 </div>
                 <HpBar hp={p.hp} max={p.maxHp} />
               </div>
@@ -277,7 +375,7 @@ function Tag({
 }
 
 // Current room and its monsters
-function Room({ view }: { view: View }) {
+function Room({ view, sc }: { view: View; sc: Shortcuts }) {
   const { room } = view;
   return (
     <Panel title={room?.name ?? 'Corridor'} className="min-w-0">
@@ -298,27 +396,33 @@ function Room({ view }: { view: View }) {
       )}
       {room?.monsters.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {room.monsters.map((m) => (
-            <div
-              key={m.id}
-              className="min-w-40 max-w-64 flex-1 rounded border border-red-900/60 bg-red-950/30 p-2"
-            >
-              <div className="flex items-center gap-2">
-                <img
-                  src={art(m.art)}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="pixel"
-                />
-                <div className="min-w-0 text-sm">
-                  <div className="break-words leading-tight">{m.name}</div>
-                  {m.stunned && <Tag>Stunned</Tag>}
+          {room.monsters.map((m) => {
+            const zone = dropZone(sc, 'foe', m.name);
+            return (
+              // biome-ignore lint/a11y/noStaticElementInteractions: mouse shortcuts; typing still works
+              <div
+                key={m.id}
+                {...zone}
+                onDoubleClick={() => sc.fill(dropText('attack', m.name))}
+                className={`max-w-64 min-w-40 flex-1 rounded border border-red-900/60 bg-red-950/30 p-2 ${clickable} ${zone.className}`}
+              >
+                <div className="flex items-center gap-2">
+                  <img
+                    src={art(m.art)}
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="pixel"
+                  />
+                  <div className="min-w-0 text-sm">
+                    <div className="leading-tight break-words">{m.name}</div>
+                    {m.stunned && <Tag>Stunned</Tag>}
+                  </div>
                 </div>
+                <HpBar hp={m.hp} max={m.maxHp} />
               </div>
-              <HpBar hp={m.hp} max={m.maxHp} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
     </Panel>
@@ -332,17 +436,21 @@ function Chat({
   error,
   send,
   myTurn,
-}: Props & { myTurn: boolean }) {
-  const [text, setText] = useState('');
-  const input = useRef<HTMLInputElement>(null);
+  draft,
+  setDraft,
+  input,
+  fill,
+}: Props & {
+  myTurn: boolean;
+  draft: string;
+  setDraft: (text: string) => void;
+  input: RefObject<HTMLInputElement | null>;
+  fill: (text: string) => void;
+}) {
   const last = view.chat.at(-1);
   const log = useScrollToEnd(`${view.chat.length}|${last?.text}|${thinking}`);
   const canType = myTurn && !thinking;
   const me = view.players.find((p) => p.characterId === view.you);
-
-  useEffect(() => {
-    if (canType) input.current?.focus();
-  }, [canType]);
 
   return (
     <Panel title="Dungeon Master" className="flex min-h-80 flex-1 flex-col">
@@ -371,16 +479,21 @@ function Chat({
         className="mt-3 flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!canType || !text.trim()) return;
-          send({ type: 'chat', text });
-          setText('');
+          if (!canType || !draft.trim()) return;
+          send({ type: 'chat', text: draft });
+          setDraft('');
         }}
       >
         <input
           ref={input}
-          value={text}
+          value={draft}
           maxLength={500}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => setDraft(e.target.value)}
+          // Dropped commands replace the draft instead of splicing into it
+          onDrop={(e) => {
+            e.preventDefault();
+            fill(e.dataTransfer.getData('text/plain'));
+          }}
           placeholder={
             myTurn
               ? thinking
@@ -394,6 +507,16 @@ function Chat({
               : 'border-stone-700 bg-stone-900'
           }`}
         />
+        {['search', 'skip'].map((cmd) => (
+          <button
+            key={cmd}
+            type="button"
+            className="rounded border border-stone-700 px-2 text-xs text-stone-300 capitalize hover:text-stone-100"
+            onClick={() => fill(cmd)}
+          >
+            {cmd}
+          </button>
+        ))}
         <button
           type="submit"
           className={button}

@@ -361,7 +361,11 @@ function enter(state: GameState, player?: Player) {
   if (room.safe) {
     state.lastSafe = { x: x + Math.floor(w / 2), y: y + Math.floor(h / 2) };
   }
-  state.log.push(`The party enters ${room.name}.`);
+  state.log.push(`The party enters ${room.name}.`, room.description);
+  // Hint only while the secret door is undiscovered
+  if (room.hint && room.secret && tileAt(state, room.secret.door) === 'S') {
+    state.log.push(room.hint);
+  }
   const foes = alive(state);
   if (foes.length) {
     state.log.push(`Combat! ${foes.map((m) => m.name).join(', ')}`);

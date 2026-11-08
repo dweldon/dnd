@@ -59,3 +59,9 @@
 .tooltip {
   animation: tooltip-in 0.12s ease-out;
 }
+
+/* Thin dark scrollbars (Chrome 121+, Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-stone-600) transparent;
+}

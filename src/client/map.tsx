@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CHARACTERS } from '../game/characters';
 import type { Dir } from '../game/engine';
 import type { View } from '../game/view';
-import { art, type Send } from './ui';
+import { art } from './ui';
 
 const TILE = 18;
 const TILE_ART: Record<string, string> = {
@@ -22,8 +22,9 @@ function partyRows<T>(players: T[]) {
 }
 
 // Circular window centered on the party, fading into the fog
+// Shrinks to fit narrow screens, showing less of the dungeon
 // Memoized: the draft re-renders Game on every keystroke
-export const DungeonMap = memo(function DungeonMap({ view }: { view: View }) {
+const DungeonMap = memo(function DungeonMap({ view }: { view: View }) {
   const width = (view.map[0]?.length ?? 0) * TILE;
   const height = view.map.length * TILE;
   const cell = (x: number, y: number) => ({
@@ -32,20 +33,21 @@ export const DungeonMap = memo(function DungeonMap({ view }: { view: View }) {
     width: TILE,
     height: TILE,
   });
-  const dx = VIEW / 2 - (view.marker.x + 0.5) * TILE;
-  const dy = VIEW / 2 - (view.marker.y + 0.5) * TILE;
+  const dx = -(view.marker.x + 0.5) * TILE;
+  const dy = -(view.marker.y + 0.5) * TILE;
   return (
     <div
       className="relative mx-auto overflow-hidden rounded-full bg-black"
       style={{
         width: VIEW,
-        height: VIEW,
+        maxWidth: '100%',
+        aspectRatio: '1',
         maskImage:
           'radial-gradient(circle closest-side, black 55%, transparent 100%)',
       }}
     >
       <div
-        className="absolute top-0 left-0 bg-black transition-transform duration-500"
+        className="absolute top-1/2 left-1/2 bg-black transition-transform duration-500"
         style={{ width, height, transform: `translate(${dx}px, ${dy}px)` }}
       >
         {view.map.flatMap((row, y) =>
@@ -117,44 +119,37 @@ export const DungeonMap = memo(function DungeonMap({ view }: { view: View }) {
   );
 });
 
-const DIRS: { dir: Dir; label: string; area: string }[] = [
-  { dir: 'north', label: 'N', area: 'col-start-2 row-start-1' },
-  { dir: 'west', label: 'W', area: 'col-start-1 row-start-2' },
-  { dir: 'east', label: 'E', area: 'col-start-3 row-start-2' },
-  { dir: 'south', label: 'S', area: 'col-start-2 row-start-3' },
+const DIRS: { dir: Dir; label: string; pos: string }[] = [
+  { dir: 'north', label: 'N', pos: 'top-0 left-1/2 -translate-x-1/2' },
+  { dir: 'west', label: 'W', pos: 'top-1/2 left-0 -translate-y-1/2' },
+  { dir: 'east', label: 'E', pos: 'top-1/2 right-0 -translate-y-1/2' },
+  { dir: 'south', label: 'S', pos: 'bottom-0 left-1/2 -translate-x-1/2' },
 ];
 
-// Lit directions are open; clicking one sends a move on your turn
+// Map with direction buttons on its rim; lit ones are open and fill the chat box
+// Buttons hide on small screens where there's no room around the map
 export function Compass({
   view,
-  canAct,
-  send,
+  fill,
 }: {
   view: View;
-  canAct: boolean;
-  send: Send;
+  fill: (text: string) => void;
 }) {
   return (
-    <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 place-items-center gap-1">
-      <img
-        src={art('compass.svg')}
-        alt="Compass"
-        width={48}
-        height={48}
-        className="pixel col-start-2 row-start-2"
-      />
-      {DIRS.map(({ dir, label, area }) => {
+    <div className="relative mx-auto w-fit max-w-full sm:p-9">
+      <DungeonMap view={view} />
+      {DIRS.map(({ dir, label, pos }) => {
         const open = view.exits.includes(dir);
         return (
           <button
             key={dir}
             type="button"
             title={`move ${dir}`}
-            disabled={!open || !canAct}
-            onClick={() => send({ type: 'chat', text: `move ${dir}` })}
-            className={`${area} size-9 rounded border font-pixel text-xs ${
+            disabled={!open}
+            onClick={() => fill(`move ${dir}`)}
+            className={`absolute ${pos} hidden size-7 rounded border bg-stone-900/90 font-pixel text-[10px] sm:block ${
               open
-                ? 'border-amber-500 text-amber-300 enabled:hover:bg-amber-500/25'
+                ? 'border-amber-500 text-amber-300 enabled:hover:bg-amber-900'
                 : 'border-stone-800 text-stone-700'
             }`}
           >

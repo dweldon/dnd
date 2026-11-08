@@ -11,10 +11,9 @@ import { ITEMS, type Item } from '../game/items';
 import { TITLE } from '../game/story';
 import type { Effect } from '../game/types';
 import type { View } from '../game/view';
-import { Compass, DungeonMap } from './map';
+import { Compass } from './map';
 import {
   art,
-  button,
   describeEffect,
   HpBar,
   Panel,
@@ -56,7 +55,17 @@ const dropText = (command: string, name: string) =>
 
 const clickable = 'cursor-pointer select-none';
 
-// Handlers for something you can double-click or drag
+// Hoverable list row; grip brightens via group-hover
+const rowBase = '-mx-1 rounded px-1';
+const row = `group ${rowBase} hover:bg-stone-800/70`;
+
+function Grip() {
+  return (
+    <span className="mr-1.5 text-stone-600 group-hover:text-stone-300">⠿</span>
+  );
+}
+
+// Handlers for something you can click or drag
 function source(
   { fill, setDrag }: Shortcuts,
   command: string,
@@ -66,7 +75,7 @@ function source(
   if (!ready) return { className: 'cursor-not-allowed select-none' };
   return {
     className: clickable,
-    onDoubleClick: () => fill(command),
+    onClick: () => fill(command),
     draggable: !!on,
     onDragStart: (e: DragEvent) => {
       e.dataTransfer.setData('text/plain', command); // Firefox needs data to drag
@@ -94,7 +103,7 @@ export function Game({ view, thinking, error, send }: Props) {
   const canAct = myTurn && !thinking;
   const [draft, setDraft] = useState('');
   const [drag, setDrag] = useState<Drag | null>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
 
   // Replace the draft and focus the box with the cursor at the end
   const fill = (text: string) => {
@@ -127,13 +136,12 @@ export function Game({ view, thinking, error, send }: Props) {
         </div>
         <div className="min-h-0 space-y-3 overflow-y-auto">
           <Panel title="Map">
-            <DungeonMap view={view} />
+            <Compass view={view} fill={fill} />
           </Panel>
           <Room view={view} sc={sc} />
         </div>
         <div className="flex min-h-0 flex-col gap-3">
-          <Chat
-            view={view}
+          <Command
             thinking={thinking}
             error={error}
             send={send}
@@ -143,9 +151,7 @@ export function Game({ view, thinking, error, send }: Props) {
             input={input}
             fill={fill}
           />
-          <Panel title="Compass" className="shrink-0">
-            <Compass view={view} canAct={canAct} send={send} />
-          </Panel>
+          <Chat view={view} thinking={thinking} />
         </div>
       </div>
     </div>
@@ -236,9 +242,10 @@ function You({ view, sc }: { view: View; sc: Shortcuts }) {
               'One enemy',
               'Usable every turn',
             ]}
-            className={`flex items-center justify-between gap-2 ${attack.className}`}
+            className={`flex items-center justify-between gap-2 ${row} ${attack.className}`}
           >
             <span>
+              <Grip />
               {c.attack.name}{' '}
               <span className="text-xs text-stone-500">{c.attack.damage}</span>
             </span>
@@ -261,9 +268,12 @@ function You({ view, sc }: { view: View; sc: Shortcuts }) {
                     ? `Ready in ${wait} turn${wait > 1 ? 's' : ''}`
                     : 'Ready now',
                 ]}
-                className={`flex items-center justify-between gap-2 ${src.className}`}
+                className={`flex items-center justify-between gap-2 ${wait ? rowBase : row} ${src.className}`}
               >
-                <span>{a.name}</span>
+                <span>
+                  <Grip />
+                  {a.name}
+                </span>
                 <Chip ready={!wait}>
                   {wait ? `${wait} turn${wait > 1 ? 's' : ''}` : 'Ready'}
                 </Chip>
@@ -289,7 +299,7 @@ function You({ view, sc }: { view: View; sc: Shortcuts }) {
                 ...describeEffect(item.effect),
                 item.effect.kind === 'equip' ? 'Equip once' : 'Single use',
               ]}
-              className={`flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs ${src.className}`}
+              className={`flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs hover:border-stone-500 hover:bg-stone-700 ${src.className}`}
             >
               <img
                 src={art(item.icon)}
@@ -333,12 +343,11 @@ function Party({ view, sc }: { view: View; sc: Shortcuts }) {
           const zone = dropZone(sc, 'ally', p.name);
           const down = p.hp === 0;
           return (
+            // biome-ignore lint/a11y/useKeyWithClickEvents: mouse shortcut; typing still works
             <li
               key={p.characterId}
               {...zone}
-              onDoubleClick={
-                down ? () => sc.fill(`revive ${p.name}`) : undefined
-              }
+              onClick={down ? () => sc.fill(`revive ${p.name}`) : undefined}
               className={`flex items-center gap-2 rounded p-1 ${zone.className || (active ? 'bg-amber-500/10 ring-1 ring-amber-400' : '')} ${down ? clickable : ''}`}
             >
               <Portrait src={c.portrait} size={40} hp={p.hp} />
@@ -400,10 +409,11 @@ function Room({ view, sc }: { view: View; sc: Shortcuts }) {
             const zone = dropZone(sc, 'foe', m.name);
             return (
               // biome-ignore lint/a11y/noStaticElementInteractions: mouse shortcuts; typing still works
+              // biome-ignore lint/a11y/useKeyWithClickEvents: mouse shortcuts; typing still works
               <div
                 key={m.id}
                 {...zone}
-                onDoubleClick={() => sc.fill(dropText('attack', m.name))}
+                onClick={() => sc.fill(dropText('attack', m.name))}
                 className={`max-w-64 min-w-40 flex-1 rounded border border-red-900/60 bg-red-950/30 p-2 ${clickable} ${zone.className}`}
               >
                 <div className="flex items-center gap-2">
@@ -429,31 +439,17 @@ function Room({ view, sc }: { view: View; sc: Shortcuts }) {
   );
 }
 
-// Shared DM log; anyone can draft, only the active player can send
-function Chat({
-  view,
-  thinking,
-  error,
-  send,
-  myTurn,
-  draft,
-  setDraft,
-  input,
-  fill,
-}: Props & {
-  myTurn: boolean;
-  draft: string;
-  setDraft: (text: string) => void;
-  input: RefObject<HTMLInputElement | null>;
-  fill: (text: string) => void;
-}) {
+// Shared DM log
+function Chat({ view, thinking }: { view: View; thinking: boolean }) {
   const last = view.chat.at(-1);
   const log = useScrollToEnd(`${view.chat.length}|${last?.text}|${thinking}`);
-  const canType = myTurn && !thinking;
   const me = view.players.find((p) => p.characterId === view.you);
 
   return (
-    <Panel title="Dungeon Master" className="flex min-h-80 flex-1 flex-col">
+    <Panel
+      title="Dungeon Master"
+      className="flex max-h-[70svh] min-h-80 flex-1 flex-col lg:max-h-none"
+    >
       <div ref={log} className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {view.chat.map((m, i) => (
           <p
@@ -475,20 +471,59 @@ function Chat({
           </p>
         )}
       </div>
+    </Panel>
+  );
+}
+
+// Anyone can draft, only the active player can send
+function Command({
+  thinking,
+  error,
+  send,
+  myTurn,
+  draft,
+  setDraft,
+  input,
+  fill,
+}: Omit<Props, 'view'> & {
+  myTurn: boolean;
+  draft: string;
+  setDraft: (text: string) => void;
+  input: RefObject<HTMLTextAreaElement | null>;
+  fill: (text: string) => void;
+}) {
+  const canType = myTurn && !thinking;
+  const submit = () => {
+    if (!canType || !draft.trim()) return;
+    send({ type: 'chat', text: draft });
+    setDraft('');
+  };
+
+  return (
+    <Panel title="Your Action" className="shrink-0">
       <form
-        className="mt-3 flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!canType || !draft.trim()) return;
-          send({ type: 'chat', text: draft });
-          setDraft('');
+          submit();
         }}
       >
-        <input
+        <textarea
           ref={input}
           value={draft}
+          rows={2}
           maxLength={500}
           onChange={(e) => setDraft(e.target.value)}
+          // Enter sends, Shift+Enter adds a new line; ignore IME confirms
+          onKeyDown={(e) => {
+            if (
+              e.key === 'Enter' &&
+              !e.shiftKey &&
+              !e.nativeEvent.isComposing
+            ) {
+              e.preventDefault();
+              submit();
+            }
+          }}
           // Dropped commands replace the draft instead of splicing into it
           onDrop={(e) => {
             e.preventDefault();
@@ -501,36 +536,38 @@ function Chat({
                 : 'Try "move east" or ask a question'
               : 'Waiting for your turn…'
           }
-          className={`min-w-0 flex-1 rounded border px-3 py-2 text-sm outline-none ${
+          className={`block w-full resize-y rounded border px-3 py-2 text-base outline-none ${
             myTurn
               ? 'border-amber-400 bg-stone-800 ring-2 ring-amber-400/50'
               : 'border-stone-700 bg-stone-900'
           }`}
         />
-        {['search', 'skip'].map((cmd) => (
+        <div className="mt-3 flex items-center gap-2">
+          {['search', 'skip'].map((cmd) => (
+            <button
+              key={cmd}
+              type="button"
+              className="rounded border border-stone-700 px-3 py-1.5 text-sm text-stone-300 capitalize hover:text-stone-100"
+              onClick={() => fill(cmd)}
+            >
+              {cmd}
+            </button>
+          ))}
           <button
-            key={cmd}
-            type="button"
-            className="rounded border border-stone-700 px-2 text-xs text-stone-300 capitalize hover:text-stone-100"
-            onClick={() => fill(cmd)}
+            type="submit"
+            className="ml-auto rounded border-2 border-amber-400 bg-amber-500 px-10 py-2.5 text-base font-bold text-stone-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:border-stone-700 disabled:bg-transparent disabled:text-stone-500"
+            disabled={!canType}
+            title={
+              canType
+                ? undefined
+                : myTurn
+                  ? 'Wait for the DM to finish'
+                  : "You can send when it's your turn"
+            }
           >
-            {cmd}
+            Send
           </button>
-        ))}
-        <button
-          type="submit"
-          className={button}
-          disabled={!canType}
-          title={
-            canType
-              ? undefined
-              : myTurn
-                ? 'Wait for the DM to finish'
-                : "You can send when it's your turn"
-          }
-        >
-          Send
-        </button>
+        </div>
       </form>
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
     </Panel>

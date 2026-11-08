@@ -5,6 +5,9 @@ import type { Effect, Pos } from './types';
 // '#' wall, '.' floor, '+' door, 'S' secret door (looks like wall until found)
 export type Tile = '#' | '.' | '+' | 'S';
 
+// Room floor corners, clear of monsters (top row middle) and the party (center)
+export type Corner = 'nw' | 'ne' | 'sw' | 'se';
+
 export type Room = {
   id: string;
   name: string;
@@ -20,6 +23,8 @@ export type Room = {
   feature?: { name: string; effect: Effect };
   // Solved once; answers are lowercase single words
   riddle?: { question: string; answers: string[]; reward: ItemId[] };
+  // Decorative corner art; 'until' hides it once the feature is used or riddle solved
+  props?: { art: string; at: Corner; until?: 'used' | 'solved' }[];
   monsters: MonsterId[];
   loot: ItemId[];
   safe?: boolean;
@@ -75,6 +80,7 @@ export const ROOMS: Room[] = [
     tint: '#4ade80',
     description:
       "A damp cave mouth beneath Mount Mugg. A hand-painted sign reads 'GOBLINS ONLY. NO KNIGHTS. NO ELVES. ESPECIALLY NO BARDS.' Muddy footprints and a faint smell of fresh coffee lead east.",
+    props: [{ art: 'goblin-sign', at: 'se' }],
     monsters: [],
     loot: [],
     safe: true,
@@ -86,6 +92,7 @@ export const ROOMS: Room[] = [
     tint: '#f59e0b',
     description:
       "A cramped guard post with a table covered in half-finished crossword puzzles. Two goblin guards are arguing over a seven-letter word for 'sneaky'. Passages lead east and north.",
+    props: [{ art: 'crossword', at: 'sw' }],
     monsters: ['goblin', 'goblin'],
     loot: [],
   },
@@ -102,6 +109,7 @@ export const ROOMS: Room[] = [
       name: 'Mushroom Armchair',
       effect: { kind: 'heal', dice: '2d6', area: 'self' },
     },
+    props: [{ art: 'mushroom-armchair', at: 'sw', until: 'used' }],
     monsters: [],
     loot: [],
   },
@@ -112,6 +120,7 @@ export const ROOMS: Room[] = [
     tint: '#a8825a',
     description:
       'A dusty, long-forgotten goblin snack pantry. Shelves of pickled beetles and a wheel of truly ancient cheese, plus a few things actually worth taking.',
+    props: [{ art: 'cheese', at: 'se' }],
     monsters: [],
     loot: ['healing-potion', 'healing-potion', 'fizzbang-bomb'],
     hidden: true,
@@ -123,6 +132,7 @@ export const ROOMS: Room[] = [
     tint: '#84cc16',
     description:
       'Shallow pools of bubbling green goo. Two slimes wobble contentedly, slowly absorbing a lost boot. They notice you and wobble less contentedly. A potion bobs in the goo. Passages lead west and south.',
+    props: [{ art: 'lost-boot', at: 'se' }],
     monsters: ['slime', 'slime'],
     loot: ['healing-potion'],
   },
@@ -133,6 +143,7 @@ export const ROOMS: Room[] = [
     tint: '#94a3b8',
     description:
       'An old crypt where three skeletons sit around a coffin lid playing cards. One has clearly been cheating for about four hundred years. They rise, rattling, annoyed at the interruption. Passages lead west, east and south.',
+    props: [{ art: 'card-coffin', at: 'sw' }],
     monsters: ['skeleton', 'skeleton', 'skeleton'],
     loot: [],
   },
@@ -145,6 +156,7 @@ export const ROOMS: Room[] = [
       'A peaceful chapel to Saint Snoozewell, patron of naps. A soft golden glow fills the room and the air smells of lavender. Nothing hostile would dare make noise here. Passages lead north and east.',
     hint: 'One floor stone by the south wall is worn smooth, as if pilgrims kept kneeling there, and it sounds hollow underfoot.',
     secret: { door: { x: 5, y: 18 }, dc: 12 },
+    props: [{ art: 'candles', at: 'se' }],
     monsters: [],
     loot: [],
     safe: true,
@@ -156,6 +168,7 @@ export const ROOMS: Room[] = [
     tint: '#e11d48',
     description:
       "A tiny hidden vault with a velvet pillow, a very old nightcap, and the saint's treasured belongings.",
+    props: [{ art: 'velvet-pillow', at: 'sw' }],
     monsters: [],
     loot: ['ring-of-protection', 'greater-healing-potion'],
     hidden: true,
@@ -167,6 +180,7 @@ export const ROOMS: Room[] = [
     tint: '#ea580c',
     description:
       "Long tables, a cauldron of mystery stew, and a chore wheel nobody follows. Two goblins are eating lunch while their pet rats beg for scraps. A sign reads 'THE KING'S COFFEE IS FOR THE KING ONLY.' Passages lead east and south.",
+    props: [{ art: 'cauldron', at: 'sw' }],
     monsters: ['goblin', 'goblin', 'giant-rat', 'giant-rat'],
     loot: [],
   },
@@ -184,6 +198,7 @@ export const ROOMS: Room[] = [
       answers: ['piano', 'keyboard', 'keyboards', 'pianos'],
       reward: ['fizzbang-bomb', 'healing-potion'],
     },
+    props: [{ art: 'talking-book', at: 'se', until: 'solved' }],
     monsters: [],
     loot: [],
   },
@@ -194,6 +209,7 @@ export const ROOMS: Room[] = [
     tint: '#fb923c',
     description:
       "The Goblin King's private supply closet: spare crowns, a dented trumpet, a pair of glowing orange gauntlets and a jar labeled 'EMERGENCY DECAF. DO NOT USE.'",
+    props: [{ art: 'crown', at: 'se' }],
     monsters: [],
     loot: ['decaf-dust', 'early-riser-gauntlets'],
     hidden: true,
@@ -205,6 +221,7 @@ export const ROOMS: Room[] = [
     tint: '#dc2626',
     description:
       "A grand hall hung with goblin banners and a red carpet that is mostly rug burns. Two of the King's honor guard stand at attention while a goblin archer practices on a target painted like the village baker. Passages lead west and east.",
+    props: [{ art: 'target', at: 'se' }],
     monsters: ['goblin-guard', 'goblin-guard', 'goblin-archer'],
     loot: [],
   },
@@ -218,6 +235,7 @@ export const ROOMS: Room[] = [
       name: 'Plate of Cookies',
       effect: { kind: 'heal', dice: '1d6', area: 'party' },
     },
+    props: [{ art: 'cookies', at: 'sw', until: 'used' }],
     monsters: [],
     loot: [],
     safe: true,
@@ -229,6 +247,12 @@ export const ROOMS: Room[] = [
     tint: '#facc15',
     description:
       "A cavernous throne room. On a throne built from stolen mugs sits Grizzlebeans the Goblin King, wide-eyed and twitching, sipping straight from the village's enchanted coffee pot. Two goblin attendants flank him.",
+    props: [
+      { art: 'coffee-pot', at: 'sw' },
+      { art: 'torch', at: 'nw' },
+      { art: 'torch', at: 'ne' },
+      { art: 'torch', at: 'se' },
+    ],
     monsters: ['goblin-king', 'goblin', 'goblin'],
     loot: [],
     boss: true,

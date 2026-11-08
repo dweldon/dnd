@@ -34,7 +34,8 @@
   animation: turn-flash 1.4s ease-out forwards;
 }
 @media (prefers-reduced-motion: reduce) {
-  .turn-flash {
+  .turn-flash,
+  .zoom-in {
     animation-duration: 0.01s;
   }
 }
@@ -59,6 +60,18 @@
 }
 .tooltip {
   animation: tooltip-in 0.12s ease-out;
+}
+
+/* Map sprite blow-up: grows from the hovered tile */
+@keyframes zoom-in {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.2);
+  }
+}
+.zoom-in {
+  transform-origin: bottom center;
+  animation: zoom-in 0.15s ease-out;
 }
 
 /* Thin dark scrollbars (Chrome 121+, Firefox) */

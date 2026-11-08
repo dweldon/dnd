@@ -23,6 +23,7 @@ import {
   type Send,
   Tooltip,
   useScrollToEnd,
+  useSecretReset,
 } from './ui';
 
 type Props = {
@@ -185,9 +186,16 @@ function Header({
   const secs = Math.max(0, Math.ceil((view.turnEndsAt - now) / 1000));
   const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
   const active = view.players.find((p) => p.characterId === view.turn);
+  const reset = useSecretReset();
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 px-4 py-2">
-      <h1 className="font-pixel text-xs text-amber-300 sm:text-sm">{TITLE}</h1>
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden reset gesture */}
+      <h1
+        className="font-pixel text-xs text-amber-300 select-none sm:text-sm"
+        onClick={reset.onClick}
+      >
+        {TITLE}
+      </h1>
       <div className="flex items-center gap-3">
         {view.turn === view.you ? (
           <span className="animate-pulse font-pixel text-xs text-amber-300">
@@ -201,7 +209,7 @@ function Header({
           <span className="text-sm text-sky-300 italic">DM is thinking…</span>
         )}
       </div>
-      <ResetButton send={send} />
+      {reset.shown && <ResetButton send={send} />}
     </header>
   );
 }

@@ -12,6 +12,7 @@ import {
   ResetButton,
   type Send,
   Tooltip,
+  useSecretReset,
 } from './ui';
 
 const IDS = Object.keys(CHARACTERS) as CharacterId[];
@@ -28,11 +29,16 @@ export function Lobby({
 }) {
   const playing = view.phase === 'playing';
   const joined = view.players.length;
+  const reset = useSecretReset();
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-pixel text-lg text-amber-300 sm:text-2xl">
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden reset gesture */}
+          <h1
+            className="font-pixel text-lg text-amber-300 select-none sm:text-2xl"
+            onClick={reset.onClick}
+          >
             {TITLE}
           </h1>
           <p className="mt-3 text-stone-400">
@@ -41,7 +47,7 @@ export function Lobby({
               : 'Pick a hero. Once 2 or more have joined, anyone can start.'}
           </p>
         </div>
-        <ResetButton send={send} />
+        {reset.shown && <ResetButton send={send} />}
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

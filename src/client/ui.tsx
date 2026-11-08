@@ -93,14 +93,20 @@ export function HpBar({ hp, max }: { hp: number; max: number }) {
   );
 }
 
+// Boolean that turns itself back off after ms
+function useTimedFlag(ms: number) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!on) return;
+    const t = setTimeout(() => setOn(false), ms);
+    return () => clearTimeout(t);
+  }, [on, ms]);
+  return [on, setOn] as const;
+}
+
 // Two clicks so nobody resets the game by accident
 export function ResetButton({ send }: { send: Send }) {
-  const [confirm, setConfirm] = useState(false);
-  useEffect(() => {
-    if (!confirm) return;
-    const t = setTimeout(() => setConfirm(false), 3000);
-    return () => clearTimeout(t);
-  }, [confirm]);
+  const [confirm, setConfirm] = useTimedFlag(3000);
   return (
     <button
       type="button"
@@ -113,6 +119,15 @@ export function ResetButton({ send }: { send: Send }) {
       {confirm ? 'Really reset?' : 'Reset game'}
     </button>
   );
+}
+
+// Reset stays hidden until the title is triple-clicked
+export function useSecretReset() {
+  const [shown, setShown] = useTimedFlag(10000);
+  const onClick = (e: { detail: number }) => {
+    if (e.detail === 3) setShown(true);
+  };
+  return { shown, onClick };
 }
 
 // Keeps a scrolling list pinned to its newest entry

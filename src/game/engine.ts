@@ -185,9 +185,11 @@ function spawn(room: Room, hpScale = 1): MonsterState[] {
   });
 }
 
+// Joining again from the lobby with an existing token switches heroes
 export function join(
   state: GameState,
   characterId: string,
+  token = '',
 ): { ok: true; token: string } | Fail {
   if (!Object.hasOwn(CHARACTERS, characterId)) {
     return { ok: false, error: 'Unknown character.' };
@@ -196,20 +198,29 @@ export function join(
   if (state.players.some((p) => p.characterId === characterId)) {
     return { ok: false, error: 'That character is taken.' };
   }
+  const i = token ? state.players.findIndex((p) => p.token === token) : -1;
+  // A switch racing with start would otherwise add a second hero
+  if (i >= 0 && state.phase !== 'lobby') {
+    return { ok: false, error: 'You have already joined.' };
+  }
   const id = characterId as CharacterId;
   const c: Character = CHARACTERS[id];
-  const token = crypto.randomUUID();
-  state.players.push({
-    token,
+  const player: Player = {
+    token: i >= 0 ? token : crypto.randomUUID(),
     name: c.name,
     characterId: id,
     hp: c.maxHp,
     cooldowns: {},
     items: [...c.items],
     bonus: { ac: 0, attack: 0, damage: 0 },
-  });
+  };
+  if (i >= 0) {
+    state.players[i] = player;
+    return { ok: true, token };
+  }
+  state.players.push(player);
   if (state.phase === 'playing') state.log.push(`${c.name} joins the party.`);
-  return { ok: true, token };
+  return { ok: true, token: player.token };
 }
 
 export function start(state: GameState): { ok: true } | Fail {

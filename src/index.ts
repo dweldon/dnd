@@ -28,7 +28,7 @@ async function handle(ws: Socket, msg: ClientMessage) {
   const error = (text: string) => send(ws, { type: 'error', error: text });
   switch (msg.type) {
     case 'join': {
-      const result = join(game, String(msg.characterId));
+      const result = join(game, String(msg.characterId), ws.data.token);
       if (!result.ok) return error(result.error);
       ws.data.token = result.token;
       send(ws, { type: 'token', token: result.token });

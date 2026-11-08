@@ -59,7 +59,7 @@ export function Lobby({
             <button
               key={id}
               type="button"
-              disabled={taken || Boolean(view.you)}
+              disabled={taken}
               onClick={() => send({ type: 'join', characterId: id })}
               className={`flex gap-3 rounded-lg border p-3 text-left transition ${
                 mine

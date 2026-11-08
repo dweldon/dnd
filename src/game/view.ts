@@ -1,4 +1,5 @@
 import { alive, exits, type GameState, hero, key, roomAt } from './engine';
+import { ROOMS } from './map';
 import { MONSTERS } from './monsters';
 
 // What one player may see: no tokens, no fogged tiles, no secret doors
@@ -35,6 +36,10 @@ export function view(state: GameState, token: string) {
         })
         .join(''),
     ),
+    // Entering a room reveals its whole rect, so one tile tells us
+    tints: ROOMS.filter(
+      (r) => r.tint && state.revealed.has(key({ x: r.rect.x, y: r.rect.y })),
+    ).map((r) => ({ rect: r.rect, color: r.tint as string })),
     room: room
       ? {
           name: room.name,
@@ -43,7 +48,12 @@ export function view(state: GameState, token: string) {
           riddle: state.rooms[room.id]?.solved
             ? null
             : (room.riddle?.question ?? null),
-          monsters: alive(state).map((m) => ({
+          // Display-only spots, spread along the room's top floor row
+          monsters: alive(state).map((m, i, all) => ({
+            x:
+              room.rect.x +
+              Math.floor(((i + 1) * room.rect.w) / (all.length + 1)),
+            y: room.rect.y,
             id: m.id,
             name: m.name,
             hp: m.hp,
@@ -53,7 +63,6 @@ export function view(state: GameState, token: string) {
           })),
         }
       : null,
-    log: state.log.slice(-50),
     chat: state.chat.slice(-100),
   };
 }

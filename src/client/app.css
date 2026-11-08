@@ -48,3 +48,14 @@
 .hurt-flash {
   animation: hurt-flash 0.8s ease-out;
 }
+
+/* Hover card fade-in */
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+.tooltip {
+  animation: tooltip-in 0.12s ease-out;
+}

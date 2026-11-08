@@ -5,7 +5,14 @@ import {
 } from '../game/characters';
 import { TITLE } from '../game/story';
 import type { View } from '../game/view';
-import { button, Portrait, ResetButton, type Send } from './ui';
+import {
+  button,
+  describeEffect,
+  Portrait,
+  ResetButton,
+  type Send,
+  Tooltip,
+} from './ui';
 
 const IDS = Object.keys(CHARACTERS) as CharacterId[];
 
@@ -70,8 +77,21 @@ export function Lobby({
                   {c.race} {c.className} · HP {c.maxHp} · AC {c.ac}
                 </div>
                 <p className="text-xs text-stone-400">{c.blurb}</p>
-                <p className="text-xs text-stone-500">
-                  {c.abilities.map((a) => a.name).join(' · ')}
+                <p className="flex flex-wrap gap-x-2 text-xs text-stone-500">
+                  {c.abilities.map((a) => (
+                    <Tooltip
+                      key={a.id}
+                      title={a.name}
+                      text={a.description}
+                      stats={[
+                        ...describeEffect(a.effect),
+                        `Usable every ${a.cooldown + 1} turns`,
+                      ]}
+                      className="underline decoration-dotted underline-offset-2 hover:text-stone-300"
+                    >
+                      {a.name}
+                    </Tooltip>
+                  ))}
                 </p>
               </div>
             </button>

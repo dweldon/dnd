@@ -7,11 +7,13 @@ import { Compass, DungeonMap } from './map';
 import {
   art,
   button,
+  describeEffect,
   HpBar,
   Panel,
   Portrait,
   ResetButton,
   type Send,
+  Tooltip,
   useScrollToEnd,
 } from './ui';
 
@@ -45,12 +47,7 @@ export function Game({ view, thinking, error, send }: Props) {
           <Panel title="Map">
             <DungeonMap view={view} />
           </Panel>
-          <div className="flex gap-3">
-            <Panel title="Compass">
-              <Compass view={view} canAct={canAct} send={send} />
-            </Panel>
-            <Room view={view} />
-          </div>
+          <Room view={view} />
         </div>
         <div className="flex min-h-0 flex-col gap-3">
           <Chat
@@ -60,7 +57,9 @@ export function Game({ view, thinking, error, send }: Props) {
             send={send}
             myTurn={myTurn}
           />
-          <Actions view={view} />
+          <Panel title="Compass" className="shrink-0">
+            <Compass view={view} canAct={canAct} send={send} />
+          </Panel>
         </div>
       </div>
     </div>
@@ -139,25 +138,46 @@ function You({ view }: { view: View }) {
       </div>
 
       <ul className="mt-3 space-y-1.5 text-sm">
-        <li className="flex items-center justify-between gap-2">
-          <span title={`+${c.attack.bonus + bonus.attack} to hit`}>
-            {c.attack.name}{' '}
-            <span className="text-xs text-stone-500">{c.attack.damage}</span>
-          </span>
-          <Chip ready>Always</Chip>
+        <li>
+          <Tooltip
+            title={c.attack.name}
+            text="Your basic attack."
+            stats={[
+              `+${c.attack.bonus + bonus.attack} to hit`,
+              `Damage ${c.attack.damage}${bonus.damage ? `+${bonus.damage}` : ''}`,
+              'One enemy',
+              'Usable every turn',
+            ]}
+            className="flex items-center justify-between gap-2"
+          >
+            <span>
+              {c.attack.name}{' '}
+              <span className="text-xs text-stone-500">{c.attack.damage}</span>
+            </span>
+            <Chip ready>Always</Chip>
+          </Tooltip>
         </li>
         {c.abilities.map((a) => {
           const wait = me.cooldowns[a.id] ?? 0;
           return (
-            <li
-              key={a.id}
-              title={`${a.description} Usable every ${a.cooldown + 1} turns.`}
-              className="flex items-center justify-between gap-2"
-            >
-              <span>{a.name}</span>
-              <Chip ready={!wait}>
-                {wait ? `${wait} turn${wait > 1 ? 's' : ''}` : 'Ready'}
-              </Chip>
+            <li key={a.id}>
+              <Tooltip
+                title={a.name}
+                text={a.description}
+                stats={[
+                  ...describeEffect(a.effect),
+                  `Usable every ${a.cooldown + 1} turns`,
+                  wait
+                    ? `Ready in ${wait} turn${wait > 1 ? 's' : ''}`
+                    : 'Ready now',
+                ]}
+                className="flex items-center justify-between gap-2"
+              >
+                <span>{a.name}</span>
+                <Chip ready={!wait}>
+                  {wait ? `${wait} turn${wait > 1 ? 's' : ''}` : 'Ready'}
+                </Chip>
+              </Tooltip>
             </li>
           );
         })}
@@ -167,10 +187,16 @@ function You({ view }: { view: View }) {
         {me.items.map((id, i) => {
           const item: Item = ITEMS[id];
           return (
-            <div
+            <Tooltip
               // biome-ignore lint/suspicious/noArrayIndexKey: items can repeat
               key={`${id}-${i}`}
-              title={`${item.name}: ${item.description}`}
+              title={item.name}
+              icon={item.icon}
+              text={item.description}
+              stats={[
+                ...describeEffect(item.effect),
+                item.effect.kind === 'equip' ? 'Equip once' : 'Single use',
+              ]}
               className="flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs"
             >
               <img
@@ -181,7 +207,7 @@ function You({ view }: { view: View }) {
                 className="pixel"
               />
               {item.name}
-            </div>
+            </Tooltip>
           );
         })}
         {!me.items.length && (
@@ -218,7 +244,7 @@ function Party({ view }: { view: View }) {
               className={`flex items-center gap-2 rounded p-1 ${active ? 'bg-amber-500/10 ring-1 ring-amber-400' : ''}`}
             >
               <Portrait src={c.portrait} size={40} hp={p.hp} />
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-sm">
                   <span className="truncate">{p.name}</span>
                   {p.characterId === view.you && <Tag>You</Tag>}
@@ -254,7 +280,7 @@ function Tag({
 function Room({ view }: { view: View }) {
   const { room } = view;
   return (
-    <Panel title={room?.name ?? 'Corridor'} className="min-w-0 flex-1">
+    <Panel title={room?.name ?? 'Corridor'} className="min-w-0">
       {room ? (
         <>
           <p className="text-xs text-stone-400">{room.description}</p>
@@ -271,11 +297,11 @@ function Room({ view }: { view: View }) {
         <p className="text-xs text-stone-400">A twisty stone passage.</p>
       )}
       {room?.monsters.length ? (
-        <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {room.monsters.map((m) => (
             <div
               key={m.id}
-              className="rounded border border-red-900/60 bg-red-950/30 p-2"
+              className="min-w-40 max-w-64 flex-1 rounded border border-red-900/60 bg-red-950/30 p-2"
             >
               <div className="flex items-center gap-2">
                 <img
@@ -286,7 +312,7 @@ function Room({ view }: { view: View }) {
                   className="pixel"
                 />
                 <div className="min-w-0 text-sm">
-                  <div className="truncate">{m.name}</div>
+                  <div className="break-words leading-tight">{m.name}</div>
                   {m.stunned && <Tag>Stunned</Tag>}
                 </div>
               </div>
@@ -299,7 +325,7 @@ function Room({ view }: { view: View }) {
   );
 }
 
-// Shared DM log; only the active player can type
+// Shared DM log; anyone can draft, only the active player can send
 function Chat({
   view,
   thinking,
@@ -312,7 +338,6 @@ function Chat({
   const last = view.chat.at(-1);
   const log = useScrollToEnd(`${view.chat.length}|${last?.text}|${thinking}`);
   const canType = myTurn && !thinking;
-  const active = view.players.find((p) => p.characterId === view.turn);
   const me = view.players.find((p) => p.characterId === view.you);
 
   useEffect(() => {
@@ -346,7 +371,7 @@ function Chat({
         className="mt-3 flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!text.trim()) return;
+          if (!canType || !text.trim()) return;
           send({ type: 'chat', text });
           setText('');
         }}
@@ -354,47 +379,37 @@ function Chat({
         <input
           ref={input}
           value={text}
-          disabled={!canType}
           maxLength={500}
           onChange={(e) => setText(e.target.value)}
           placeholder={
             myTurn
               ? thinking
                 ? 'The DM is thinking…'
-                : 'Your turn: try "move east" or ask a question'
-              : `Waiting for ${active?.name ?? 'the party'}…`
+                : 'Try "move east" or ask a question'
+              : 'Waiting for your turn…'
           }
           className={`min-w-0 flex-1 rounded border px-3 py-2 text-sm outline-none ${
             myTurn
               ? 'border-amber-400 bg-stone-800 ring-2 ring-amber-400/50'
-              : 'border-stone-700 bg-stone-900 opacity-60'
+              : 'border-stone-700 bg-stone-900'
           }`}
         />
-        <button type="submit" className={button} disabled={!canType}>
+        <button
+          type="submit"
+          className={button}
+          disabled={!canType}
+          title={
+            canType
+              ? undefined
+              : myTurn
+                ? 'Wait for the DM to finish'
+                : "You can send when it's your turn"
+          }
+        >
           Send
         </button>
       </form>
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-    </Panel>
-  );
-}
-
-// Compact list of what each action did
-function Actions({ view }: { view: View }) {
-  const ref = useScrollToEnd(`${view.log.length}|${view.log.at(-1)}`);
-  return (
-    <Panel title="Actions" className="flex h-48 shrink-0 flex-col">
-      <div ref={ref} className="min-h-0 flex-1 overflow-y-auto">
-        {view.log.map((line, i) => (
-          <p
-            // biome-ignore lint/suspicious/noArrayIndexKey: append-only log
-            key={i}
-            className="border-b border-stone-800 py-0.5 font-mono text-xs text-stone-300"
-          >
-            {line}
-          </p>
-        ))}
-      </div>
     </Panel>
   );
 }

@@ -1,4 +1,11 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import type { Effect } from '../game/types';
 import type { ClientMessage } from '../messages';
 
 export type Send = (msg: ClientMessage) => void;
@@ -112,4 +119,111 @@ export function useScrollToEnd(last: string | undefined) {
     if (el && last !== undefined) el.scrollTop = el.scrollHeight;
   }, [last]);
   return ref;
+}
+
+// Plain-English stat lines for an ability or item effect
+export function describeEffect(effect: Effect): string[] {
+  switch (effect.kind) {
+    case 'damage':
+      return [
+        `Damage ${effect.dice}`,
+        effect.area === 'all' ? 'Hits every enemy' : 'One enemy',
+        effect.autoHit ? 'Never misses' : '',
+        effect.stun ? 'Stuns: target skips its next action' : '',
+      ].filter(Boolean);
+    case 'heal':
+      return [
+        `Heals ${effect.dice} HP`,
+        { self: 'Yourself', one: 'You or one ally', party: 'Whole party' }[
+          effect.area
+        ],
+      ];
+    case 'weaken':
+      return [`Target -${effect.ac} AC for the rest of the fight`];
+    case 'equip': {
+      const parts = [
+        effect.ac && `+${effect.ac} AC`,
+        effect.attack && `+${effect.attack} to hit`,
+        effect.damage && `+${effect.damage} damage`,
+      ].filter(Boolean);
+      return [`Permanent: ${parts.join(', ')}`];
+    }
+  }
+}
+
+const GAP = 8;
+
+// Floating info card shown while hovering the trigger.
+// Fixed position so scrolling columns can't clip it.
+export function Tooltip({
+  title,
+  icon,
+  text,
+  stats,
+  className = '',
+  children,
+}: {
+  title: string;
+  icon?: string;
+  text?: string;
+  stats: string[];
+  className?: string;
+  children: ReactNode;
+}) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const card = useRef<HTMLDivElement>(null);
+
+  // Place right of the trigger, flipping left and clamping to the viewport
+  useLayoutEffect(() => {
+    const el = card.current;
+    if (!rect || !el) return;
+    const { width, height } = el.getBoundingClientRect();
+    const right = rect.right + GAP;
+    const left =
+      right + width <= window.innerWidth ? right : rect.left - width - GAP;
+    const top = Math.min(rect.top, window.innerHeight - height - GAP);
+    el.style.left = `${Math.max(GAP, left)}px`;
+    el.style.top = `${Math.max(GAP, top)}px`;
+  }, [rect]);
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: hover-only info card
+    <span
+      className={className}
+      onMouseEnter={(e) => setRect(e.currentTarget.getBoundingClientRect())}
+      onMouseLeave={() => setRect(null)}
+    >
+      {children}
+      {rect && (
+        <div
+          ref={card}
+          className="tooltip pointer-events-none fixed z-40 w-64 rounded-lg border border-amber-500/40 bg-stone-900 p-3 text-left font-sans text-xs font-normal normal-case shadow-xl shadow-black/60"
+        >
+          <div className="flex items-center gap-2">
+            {icon && (
+              <img
+                src={art(icon)}
+                alt=""
+                width={24}
+                height={24}
+                className="pixel"
+              />
+            )}
+            <span className="font-pixel text-[10px] leading-relaxed text-amber-300">
+              {title}
+            </span>
+          </div>
+          {text && <p className="mt-2 text-stone-400 italic">{text}</p>}
+          <ul className="mt-2 space-y-1 border-t border-stone-700 pt-2">
+            {stats.map((s) => (
+              <li key={s} className="flex gap-1.5 text-amber-100">
+                <span className="text-amber-400">◆</span>
+                {s}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </span>
+  );
 }

@@ -9,7 +9,10 @@ const TILE_ART: Record<string, string> = {
   '+': 'tiles/door.svg',
 };
 
-// Revealed tiles plus the party token; fog is plain black
+// Viewport diameter: the current room plus the edges of its neighbors
+const VIEW = 20 * TILE;
+
+// Circular window centered on the party, fading into the fog
 export function DungeonMap({ view }: { view: View }) {
   const width = (view.map[0]?.length ?? 0) * TILE;
   const height = view.map.length * TILE;
@@ -19,9 +22,22 @@ export function DungeonMap({ view }: { view: View }) {
     width: TILE,
     height: TILE,
   });
+  const dx = VIEW / 2 - (view.marker.x + 0.5) * TILE;
+  const dy = VIEW / 2 - (view.marker.y + 0.5) * TILE;
   return (
-    <div className="overflow-auto">
-      <div className="relative bg-black" style={{ width, height }}>
+    <div
+      className="relative mx-auto overflow-hidden rounded-full bg-black"
+      style={{
+        width: VIEW,
+        height: VIEW,
+        maskImage:
+          'radial-gradient(circle closest-side, black 55%, transparent 100%)',
+      }}
+    >
+      <div
+        className="absolute top-0 left-0 bg-black transition-transform duration-500"
+        style={{ width, height, transform: `translate(${dx}px, ${dy}px)` }}
+      >
         {view.map.flatMap((row, y) =>
           [...row].map((t, x) => {
             const src = TILE_ART[t];
@@ -37,10 +53,34 @@ export function DungeonMap({ view }: { view: View }) {
             ) : null;
           }),
         )}
+        {view.tints.map(({ rect, color }) => (
+          <div
+            key={`${rect.x},${rect.y}`}
+            className="pointer-events-none absolute"
+            style={{
+              ...cell(rect.x, rect.y),
+              width: rect.w * TILE,
+              height: rect.h * TILE,
+              background: `radial-gradient(ellipse at center, ${color} 0%, transparent 75%)`,
+              mixBlendMode: 'soft-light',
+              opacity: 0.6,
+            }}
+          />
+        ))}
+        {view.room?.monsters.map((m) => (
+          <img
+            key={m.id}
+            src={art(m.art)}
+            alt={m.name}
+            title={m.name}
+            className="pixel absolute drop-shadow-[0_0_4px_rgba(239,68,68,0.9)]"
+            style={cell(m.x, m.y)}
+          />
+        ))}
         <img
           src={art('token.svg')}
           alt="Party"
-          className="pixel absolute drop-shadow-[0_0_4px_rgba(251,191,36,0.9)] transition-all duration-500"
+          className="pixel absolute drop-shadow-[0_0_4px_rgba(251,191,36,0.9)]"
           style={cell(view.marker.x, view.marker.y)}
         />
       </div>
@@ -66,7 +106,7 @@ export function Compass({
   send: Send;
 }) {
   return (
-    <div className="grid w-fit grid-cols-3 grid-rows-3 place-items-center gap-1">
+    <div className="mx-auto grid w-fit grid-cols-3 grid-rows-3 place-items-center gap-1">
       <img
         src={art('compass.svg')}
         alt="Compass"

@@ -76,6 +76,7 @@ export function view(state: GameState, token: string) {
         }
       : null,
     chat: state.chat.slice(-100),
+    events: state.events,
   };
 }
 

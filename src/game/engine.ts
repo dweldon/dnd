@@ -8,6 +8,21 @@ import type { Dice, Effect, Pos } from './types';
 
 export const TURN_MS = 120_000;
 
+export type Sound =
+  | 'hit'
+  | 'miss'
+  | 'defeat'
+  | 'hurt'
+  | 'heal'
+  | 'down'
+  | 'secret'
+  | 'loot'
+  | 'equip'
+  | 'combat'
+  | 'calm'
+  | 'victory'
+  | 'turn';
+
 export type Player = {
   token: string;
   // The hero's name
@@ -58,6 +73,9 @@ export type GameState = {
   log: string[];
   // DM log, written by the server
   chat: { from: string; text: string }[];
+  // Recent sound cues; `to` limits one to a single hero
+  events: { id: number; sound: Sound; to?: CharacterId }[];
+  nextEvent: number;
 };
 
 export type Dir = 'north' | 'south' | 'east' | 'west';
@@ -103,6 +121,11 @@ export const roomAt = (p: Pos) =>
       p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h,
   );
 
+function sfx(state: GameState, sound: Sound, to?: CharacterId) {
+  state.events.push({ id: state.nextEvent++, sound, to });
+  if (state.events.length > 50) state.events.shift();
+}
+
 // Living monsters in the party's room
 export function alive(state: GameState) {
   const room = roomAt(state.pos);
@@ -134,6 +157,8 @@ export function newGame(): GameState {
     dmgScale: 1,
     log: [],
     chat: [],
+    events: [],
+    nextEvent: 0,
   };
 }
 
@@ -198,6 +223,7 @@ export function start(state: GameState): { ok: true } | Fail {
   state.turn = 0;
   state.turnEndsAt = Date.now() + TURN_MS;
   enter(state);
+  turnCue(state);
   return { ok: true };
 }
 
@@ -291,6 +317,7 @@ function resolve(state: GameState, player: Player, action: Action) {
       if (!ally || ally.hp > 0) fail('Only a downed ally can be revived.');
       const hp = heal(ally, roll(c.reviveHeal));
       state.log.push(`${player.name} revives ${ally.name}: +${hp} HP`);
+      sfx(state, 'heal');
       break;
     }
     case 'skip':
@@ -404,6 +431,7 @@ function enter(state: GameState, player?: Player) {
   state.log.push(`The party enters ${room.name}. ${room.description}${hint}`);
   if (alive(state).length) {
     state.log.push(pick(COMBAT_STARTS));
+    sfx(state, 'combat');
   } else if (player) {
     loot(state, player);
   }
@@ -416,6 +444,7 @@ function loot(state: GameState, player: Player) {
   player.items.push(...items);
   const names = items.map((i) => ITEMS[i].name).join(', ');
   state.log.push(`${player.name} finds ${names}.`);
+  sfx(state, 'loot');
   items.length = 0;
 }
 
@@ -452,6 +481,7 @@ function strike(
   const toHit = d20() + hero(player).attack.bonus + player.bonus.attack;
   if (!hit.autoHit && toHit < kind(m).ac - m.acPenalty) {
     state.log.push(`${who}: miss`);
+    sfx(state, 'miss');
     return;
   }
   const dmg = Math.max(0, roll(hit.dice) + player.bonus.damage);
@@ -459,11 +489,14 @@ function strike(
   const stunned = Boolean(hit.stun) && m.hp > 0;
   m.stunned ||= stunned;
   state.log.push(`${who}: hit, ${dmg} dmg${stunned ? ', stunned' : ''}`);
+  sfx(state, 'hit');
   if (m.hp > 0) return;
   state.log.push(`${m.name} is defeated!`);
+  sfx(state, 'defeat');
   if (kind(m).boss) {
     state.phase = 'won';
     state.log.push('Victory! The coffee pot is saved!');
+    sfx(state, 'victory');
   }
 }
 
@@ -494,6 +527,7 @@ function applyEffect(
         (a) => `${a.name} +${heal(a, roll(effect.dice))}`,
       );
       state.log.push(`${player.name} uses ${label}: ${gains.join(', ')} HP`);
+      sfx(state, 'heal');
       break;
     }
     case 'weaken': {
@@ -509,6 +543,7 @@ function applyEffect(
       player.bonus.attack += effect.attack ?? 0;
       player.bonus.damage += effect.damage ?? 0;
       state.log.push(`${player.name} equips ${label}.`);
+      sfx(state, 'equip');
       break;
   }
 }
@@ -523,6 +558,7 @@ function search(state: GameState, player: Player) {
     state.log.push(
       `${player.name} searches (rolled ${n}): found a secret door!`,
     );
+    sfx(state, 'secret');
   } else {
     state.log.push(`${player.name} searches (rolled ${n}): nothing found.`);
   }
@@ -552,6 +588,7 @@ function answer(state: GameState, player: Player, text: string) {
   state.log.push(
     `${player.name} answers "${text}": correct! Reward: ${names}.`,
   );
+  sfx(state, 'loot');
 }
 
 function endCombat(state: GameState, player: Player) {
@@ -560,6 +597,7 @@ function endCombat(state: GameState, player: Player) {
   state.log.push(
     downed.length ? 'Combat over! Downed heroes get back up.' : 'Combat over!',
   );
+  sfx(state, 'calm');
   loot(state, player);
 }
 
@@ -582,7 +620,14 @@ function endTurn(state: GameState): string[] {
     if ((state.players[state.turn]?.hp ?? 0) > 0) break;
   }
   state.turnEndsAt = Date.now() + TURN_MS;
+  turnCue(state);
   return narration;
+}
+
+// Chimes for the hero whose turn starts, even if it's the same one again
+function turnCue(state: GameState) {
+  const p = state.players[state.turn];
+  if (state.phase === 'playing' && p) sfx(state, 'turn', p.characterId);
 }
 
 function monsterPhase(state: GameState, narration: string[]) {
@@ -613,7 +658,11 @@ function monsterPhase(state: GameState, narration: string[]) {
           .replaceAll('{target}', p.name)
           .replaceAll('{damage}', String(dmg)),
       );
-      if (p.hp === 0) say(`${p.name} is down!`);
+      if (hit) sfx(state, 'hurt', p.characterId);
+      if (p.hp === 0) {
+        say(`${p.name} is down!`);
+        sfx(state, 'down');
+      }
     }
   }
   if (state.players.every((p) => p.hp === 0)) wipe(state, narration);

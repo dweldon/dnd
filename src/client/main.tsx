@@ -1,11 +1,14 @@
 import { createRoot } from 'react-dom/client';
 import { Game } from './game';
 import { Lobby } from './lobby';
+import { useSounds } from './sounds';
 import { useGame } from './use-game';
 import { Victory } from './victory';
 
 function App() {
   const { view, thinking, error, send } = useGame();
+  // Here, not in Game, so the victory screen still hears the final events
+  useSounds(view);
   if (!view) {
     return <p className="p-6 font-pixel text-xs text-stone-400">Connecting…</p>;
   }

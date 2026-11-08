@@ -12,6 +12,7 @@ import { TITLE } from '../game/story';
 import type { Effect } from '../game/types';
 import type { View } from '../game/view';
 import { Compass } from './map';
+import { useMuted } from './sounds';
 import { startTour } from './tour';
 import {
   art,
@@ -187,6 +188,7 @@ function Header({
   const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
   const active = view.players.find((p) => p.characterId === view.turn);
   const reset = useSecretReset();
+  const [muted, toggleMute] = useMuted();
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 px-4 py-2">
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden reset gesture */}
@@ -205,6 +207,14 @@ function Header({
           <span className="text-stone-300">{active?.name}'s turn</span>
         )}
         <span className="text-sm text-stone-500 tabular-nums">{clock}</span>
+        <button
+          type="button"
+          className="cursor-pointer text-sm"
+          onClick={toggleMute}
+          title={muted ? 'Unmute sounds' : 'Mute sounds'}
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
         {thinking && (
           <span className="text-sm text-sky-300 italic">DM is thinking…</span>
         )}

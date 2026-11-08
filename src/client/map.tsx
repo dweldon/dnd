@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { CHARACTERS } from '../game/characters';
 import type { Dir } from '../game/engine';
 import type { View } from '../game/view';
 import { art, type Send } from './ui';
@@ -12,6 +13,13 @@ const TILE_ART: Record<string, string> = {
 
 // Viewport diameter: the current room plus the edges of its neighbors
 const VIEW = 20 * TILE;
+
+// One row up to 3, else split into two rows of at most 3
+function partyRows<T>(players: T[]) {
+  if (players.length <= 3) return [players];
+  const top = Math.ceil(players.length / 2);
+  return [players.slice(0, top), players.slice(top)];
+}
 
 // Circular window centered on the party, fading into the fog
 // Memoized: the draft re-renders Game on every keystroke
@@ -79,12 +87,31 @@ export const DungeonMap = memo(function DungeonMap({ view }: { view: View }) {
             style={cell(m.x, m.y)}
           />
         ))}
-        <img
-          src={art('token.svg')}
-          alt="Party"
-          className="pixel absolute drop-shadow-[0_0_4px_rgba(251,191,36,0.9)]"
-          style={cell(view.marker.x, view.marker.y)}
-        />
+        {/* Party: overlapping avatars centered on the marker tile */}
+        <div
+          className="pointer-events-none absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center drop-shadow-[0_0_4px_rgba(251,191,36,0.9)]"
+          style={{
+            left: (view.marker.x + 0.5) * TILE,
+            top: (view.marker.y + 0.5) * TILE,
+          }}
+        >
+          {partyRows(view.players).map((row, r) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: fixed rows
+              key={r}
+              className={`flex ${r ? '-mt-1.5' : ''}`}
+            >
+              {row.map((p, i) => (
+                <img
+                  key={p.characterId}
+                  src={art(CHARACTERS[p.characterId].portrait)}
+                  alt={p.name}
+                  className={`pixel size-4 rounded-full border border-amber-400 bg-stone-800 ${i ? '-ml-1.5' : ''} ${p.hp === 0 ? 'opacity-60 grayscale' : ''}`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

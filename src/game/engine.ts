@@ -338,6 +338,13 @@ function revealAround(state: GameState, p: Pos) {
   }
 }
 
+const COMBAT_STARTS = [
+  'Combat begins!',
+  'Weapons at the ready!',
+  'The fight is on!',
+  'Battle is joined!',
+];
+
 function enter(state: GameState, player?: Player) {
   const room = roomAt(state.pos);
   if (!room) return;
@@ -361,14 +368,14 @@ function enter(state: GameState, player?: Player) {
   if (room.safe) {
     state.lastSafe = { x: x + Math.floor(w / 2), y: y + Math.floor(h / 2) };
   }
-  state.log.push(`The party enters ${room.name}.`, room.description);
   // Hint only while the secret door is undiscovered
-  if (room.hint && room.secret && tileAt(state, room.secret.door) === 'S') {
-    state.log.push(room.hint);
-  }
-  const foes = alive(state);
-  if (foes.length) {
-    state.log.push(`Combat! ${foes.map((m) => m.name).join(', ')}`);
+  const hint =
+    room.hint && room.secret && tileAt(state, room.secret.door) === 'S'
+      ? ` ${room.hint}`
+      : '';
+  state.log.push(`The party enters ${room.name}. ${room.description}${hint}`);
+  if (alive(state).length) {
+    state.log.push(pick(COMBAT_STARTS));
   } else if (player) {
     loot(state, player);
   }

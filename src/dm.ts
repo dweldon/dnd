@@ -148,7 +148,7 @@ const textOf = (res: Anthropic.Beta.BetaMessage | null) =>
 export async function respond(state: GameState, token: string, text: string) {
   const say = (line: string) => state.chat.push({ from: 'DM', text: line });
   const report = (result: ActResult, story: string) => {
-    say(story || result.lines.join(' '));
+    say(story || result.lines.join('\n\n'));
     for (const line of result.narration) say(line);
     if (state.phase === 'won') say(VICTORY);
   };

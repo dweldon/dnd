@@ -12,6 +12,7 @@ import { TITLE } from '../game/story';
 import type { Effect } from '../game/types';
 import type { View } from '../game/view';
 import { Compass } from './map';
+import { startTour } from './tour';
 import {
   art,
   describeEffect,
@@ -119,6 +120,9 @@ export function Game({ view, thinking, error, send }: Props) {
     if (canAct) input.current?.focus();
   }, [canAct]);
 
+  // After the focus effect so the popover keeps focus
+  useEffect(() => startTour(), []);
+
   // Flag the browser tab so players in other tabs notice
   useEffect(() => {
     document.title = myTurn ? `⚔ Your turn! · ${TITLE}` : TITLE;
@@ -135,7 +139,7 @@ export function Game({ view, thinking, error, send }: Props) {
           <Party view={view} sc={sc} />
         </div>
         <div className="min-h-0 space-y-3 overflow-y-auto">
-          <Panel title="Map">
+          <Panel id="tour-map" title="Map">
             <Compass view={view} fill={fill} />
           </Panel>
           <Room view={view} sc={sc} />
@@ -230,7 +234,7 @@ function You({ view, sc }: { view: View; sc: Shortcuts }) {
         </div>
       </div>
 
-      <ul className="mt-3 space-y-1.5 text-sm">
+      <ul id="tour-abilities" className="mt-3 space-y-1.5 text-sm">
         <li>
           <Tooltip
             {...attack}
@@ -283,7 +287,7 @@ function You({ view, sc }: { view: View; sc: Shortcuts }) {
         })}
       </ul>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div id="tour-items" className="mt-3 flex flex-wrap gap-2">
         {me.items.map((id, i) => {
           const item: Item = ITEMS[id];
           const src = source(sc, `use ${item.name}`, targetOf(item.effect));
@@ -387,7 +391,7 @@ function Tag({
 function Room({ view, sc }: { view: View; sc: Shortcuts }) {
   const { room } = view;
   return (
-    <Panel title={room?.name ?? 'Corridor'} className="min-w-0">
+    <Panel id="tour-room" title={room?.name ?? 'Corridor'} className="min-w-0">
       {room ? (
         <>
           <p className="text-xs text-stone-400">{room.description}</p>
@@ -500,7 +504,7 @@ function Command({
   };
 
   return (
-    <Panel title="Your Action" className="shrink-0">
+    <Panel id="tour-action" title="Your Action" className="shrink-0">
       <form
         onSubmit={(e) => {
           e.preventDefault();

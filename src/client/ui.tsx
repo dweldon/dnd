@@ -18,15 +18,18 @@ export const button =
 
 export function Panel({
   title,
+  id,
   className = '',
   children,
 }: {
   title: string;
+  id?: string;
   className?: string;
   children: ReactNode;
 }) {
   return (
     <section
+      id={id}
       className={`rounded-lg border border-stone-700 bg-stone-900/80 p-3 ${className}`}
     >
       <h2 className="mb-3 font-pixel text-[10px] text-amber-300 uppercase">

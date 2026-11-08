@@ -153,7 +153,7 @@ export const ROOMS: Room[] = [
     rect: { x: 3, y: 12, w: 7, h: 6 },
     tint: '#fde68a',
     description:
-      'A peaceful chapel to Saint Snoozewell, patron of naps. A soft golden glow fills the room and the air smells of lavender. Nothing hostile would dare make noise here. Passages lead north and east.',
+      'A peaceful chapel to Saint Snoozewell, patron of naps. A soft golden glow from dozens of candles fills the room and the air smells of lavender. Nothing hostile would dare make noise here. Passages lead north and east.',
     hint: 'One floor stone by the south wall is worn smooth, as if pilgrims kept kneeling there, and it sounds hollow underfoot.',
     secret: { door: { x: 5, y: 18 }, dc: 12 },
     props: [{ art: 'candles', at: 'se' }],
@@ -246,7 +246,7 @@ export const ROOMS: Room[] = [
     rect: { x: 39, y: 11, w: 8, h: 9 },
     tint: '#facc15',
     description:
-      "A cavernous throne room. On a throne built from stolen mugs sits Grizzlebeans the Goblin King, wide-eyed and twitching, sipping straight from the village's enchanted coffee pot. Two goblin attendants flank him.",
+      "A cavernous, torch-lit throne room. On a throne built from stolen mugs sits Grizzlebeans the Goblin King, wide-eyed and twitching, sipping straight from the village's enchanted coffee pot. Two goblin attendants flank him.",
     props: [
       { art: 'coffee-pot', at: 'sw' },
       { art: 'torch', at: 'nw' },

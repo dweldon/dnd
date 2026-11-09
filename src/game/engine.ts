@@ -423,7 +423,8 @@ function enter(state: GameState, player?: Player) {
   }
   // Scale to whoever is here now, so late joiners count
   const rs = state.rooms[room.id];
-  if (rs && !rs.visited) {
+  const first = !rs?.visited;
+  if (rs && first) {
     rs.visited = true;
     if (room.monsters.length) {
       const size = state.players.length;
@@ -439,8 +440,21 @@ function enter(state: GameState, player?: Player) {
     room.hint && room.secret && tileAt(state, room.secret.door) === 'S'
       ? ` ${room.hint}`
       : '';
-  state.log.push(`The party enters ${room.name}. ${room.description}${hint}`);
-  if (alive(state).length) {
+  const fighting = alive(state).length > 0;
+  if (first || fighting) {
+    state.log.push(`The party enters ${room.name}. ${room.description}${hint}`);
+  } else {
+    // Remind returning players of anything left to do
+    const left =
+      (room.feature && !rs?.used
+        ? ` The ${room.feature.name} is still here.`
+        : '') +
+      (room.riddle && !rs?.solved ? ' The riddle still awaits an answer.' : '');
+    state.log.push(
+      `The party returns to ${room.name}. ${room.revisit ?? 'It is quiet now.'}${left}${hint}`,
+    );
+  }
+  if (fighting) {
     state.log.push(pick(COMBAT_STARTS));
     sfx(state, 'combat');
   } else if (player) {

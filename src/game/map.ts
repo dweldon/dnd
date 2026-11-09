@@ -14,6 +14,8 @@ export type Room = {
   // Floor area, excluding the surrounding walls
   rect: { x: number; y: number; w: number; h: number };
   description: string;
+  // Shown on return visits instead of description
+  revisit?: string;
   // CSS color for a soft light overlay on the floor
   tint?: string;
   // Clue pointing at this room's secret door
@@ -92,6 +94,8 @@ export const ROOMS: Room[] = [
     tint: '#f59e0b',
     description:
       "A cramped guard post with a table covered in half-finished crossword puzzles. Two goblin guards are arguing over a seven-letter word for 'sneaky'. Passages lead east and north.",
+    revisit:
+      "The crossword sits abandoned, the seven-letter word for 'sneaky' still unsolved.",
     props: [{ art: 'crossword', at: 'sw' }],
     monsters: ['goblin', 'goblin'],
     loot: [],
@@ -103,6 +107,8 @@ export const ROOMS: Room[] = [
     tint: '#a855f7',
     description:
       'A wide cavern full of mushrooms glowing soft blue and purple. Some of them hum quietly to themselves. One looks suspiciously like a tiny armchair. A passage leads north.',
+    revisit:
+      'The mushrooms hum their quiet tune, glowing soft blue and purple.',
     hint: 'The mushrooms by the east wall all lean the same way, as if a steady draft were pushing them.',
     secret: { door: { x: 36, y: 26 }, dc: 13 },
     feature: {
@@ -132,6 +138,8 @@ export const ROOMS: Room[] = [
     tint: '#84cc16',
     description:
       'Shallow pools of bubbling green goo. Two slimes wobble contentedly, slowly absorbing a lost boot. They notice you and wobble less contentedly. A potion bobs in the goo. Passages lead west and south.',
+    revisit:
+      'The pools bubble quietly, slime-free at last. The lost boot is still not coming back.',
     props: [{ art: 'lost-boot', at: 'se' }],
     monsters: ['slime', 'slime'],
     loot: ['healing-potion'],
@@ -143,6 +151,8 @@ export const ROOMS: Room[] = [
     tint: '#94a3b8',
     description:
       'An old crypt where three skeletons sit around a coffin lid playing cards. One has clearly been cheating for about four hundred years. They rise, rattling, annoyed at the interruption. Passages lead west, east and south.',
+    revisit:
+      'Playing cards lie scattered around the coffin lid. Nobody will ever know who was cheating.',
     props: [{ art: 'card-coffin', at: 'sw' }],
     monsters: ['skeleton', 'skeleton', 'skeleton'],
     loot: [],
@@ -180,6 +190,8 @@ export const ROOMS: Room[] = [
     tint: '#ea580c',
     description:
       "Long tables, a cauldron of mystery stew, and a chore wheel nobody follows. Two goblins are eating lunch while their pet rats beg for scraps. A sign reads 'THE KING'S COFFEE IS FOR THE KING ONLY.' Passages lead east and south.",
+    revisit:
+      'The mystery stew simmers on, unattended. The chore wheel remains ignored.',
     props: [{ art: 'cauldron', at: 'sw' }],
     monsters: ['goblin', 'goblin', 'giant-rat', 'giant-rat'],
     loot: [],
@@ -191,6 +203,7 @@ export const ROOMS: Room[] = [
     tint: '#d6a35c',
     description:
       "Towering shelves of books, all overdue by centuries. The goblin librarian's desk holds a single rubber stamp that only says 'NO.' A talking book on the desk clears its spine and offers a prize for answering its riddle. Passages lead west and east.",
+    revisit: 'The books are, somehow, even more overdue than before.',
     hint: "A cold draft blows from under the bookshelf on the south wall, where one book titled 'Definitely Not a Lever' sticks out.",
     secret: { door: { x: 19, y: 8 }, dc: 14 },
     riddle: {
@@ -221,6 +234,8 @@ export const ROOMS: Room[] = [
     tint: '#dc2626',
     description:
       "A grand hall hung with goblin banners and a red carpet that is mostly rug burns. Two of the King's honor guard stand at attention while a goblin archer practices on a target painted like the village baker. Passages lead west and east.",
+    revisit:
+      'The banners hang still, and the painted baker on the target looks relieved.',
     props: [{ art: 'target', at: 'se' }],
     monsters: ['goblin-guard', 'goblin-guard', 'goblin-archer'],
     loot: [],
@@ -231,6 +246,7 @@ export const ROOMS: Room[] = [
     rect: { x: 39, y: 2, w: 7, h: 5 },
     description:
       "Uncomfortable chairs, a ticket machine and a sign reading 'NOW SERVING: 3.' Someone left out a plate of cookies. Loud slurping echoes from a door to the south. It feels oddly safe here. Passages lead west and south.",
+    revisit: "The sign still reads 'NOW SERVING: 3.' Nobody has been served.",
     feature: {
       name: 'Plate of Cookies',
       effect: { kind: 'heal', dice: '1d6', area: 'party' },

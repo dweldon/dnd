@@ -76,6 +76,8 @@ export function view(state: GameState, token: string) {
         }
       : null,
     chat: state.chat.slice(-100),
+    // Lets clients spot new lines past the 100 cap
+    chatTotal: state.chat.length,
     events: state.events,
   };
 }

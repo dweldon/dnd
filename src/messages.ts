@@ -9,6 +9,6 @@ export type ClientMessage =
 
 // Server → client
 export type ServerMessage =
-  | { type: 'state'; view: View; thinking: boolean }
+  | { type: 'state'; view: View; thinking: boolean; voice: boolean }
   | { type: 'token'; token: string }
   | { type: 'error'; error: string };

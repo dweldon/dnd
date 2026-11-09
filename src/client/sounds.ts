@@ -27,6 +27,10 @@ function unlock() {
 window.addEventListener('pointerdown', unlock);
 window.addEventListener('keydown', unlock);
 
+// Shared with speech
+export const audio = () => ctx;
+export const isMuted = () => muted;
+
 // Gain envelope: quick attack, exponential decay
 function envelope(c: AudioContext, t: number, dur: number, gain: number) {
   const g = c.createGain();
@@ -147,13 +151,13 @@ let muted = (() => {
   }
 })();
 const listeners = new Set<() => void>();
-const subscribe = (cb: () => void) => {
+export const subscribe = (cb: () => void) => {
   listeners.add(cb);
   return () => listeners.delete(cb);
 };
 
 export function useMuted() {
-  const value = useSyncExternalStore(subscribe, () => muted);
+  const value = useSyncExternalStore(subscribe, isMuted);
   const toggle = () => {
     muted = !muted;
     // Also silences sounds already queued

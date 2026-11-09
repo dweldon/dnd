@@ -5,6 +5,7 @@ import { join, newGame, start, tick } from './game/engine';
 import { INTRO } from './game/story';
 import { view } from './game/view';
 import type { ClientMessage, ServerMessage } from './messages';
+import { SPEECH_LINES, speak, voiceOn } from './tts';
 
 type Socket = ServerWebSocket<{ token: string }>;
 
@@ -18,7 +19,12 @@ const sockets = new Set<Socket>();
 
 const send = (ws: Socket, msg: ServerMessage) => ws.send(JSON.stringify(msg));
 const sendState = (ws: Socket) =>
-  send(ws, { type: 'state', view: view(game, ws.data.token), thinking });
+  send(ws, {
+    type: 'state',
+    view: view(game, ws.data.token),
+    thinking,
+    voice: voiceOn,
+  });
 
 function broadcast() {
   for (const ws of sockets) sendState(ws);
@@ -82,6 +88,18 @@ const server = Bun.serve({
       const token = new URL(req.url).searchParams.get('token') ?? '';
       if (server.upgrade(req, { data: { token } })) return;
       return new Response('Upgrade failed', { status: 400 });
+    },
+    // Only recent DM lines, so the key isn't an open TTS proxy
+    '/speech': async (req) => {
+      const text = new URL(req.url).searchParams.get('text') ?? '';
+      const known = game.chat
+        .slice(-SPEECH_LINES)
+        .some((m) => m.from === 'DM' && m.text === text);
+      if (!voiceOn || !known) return new Response('Not found', { status: 404 });
+      const clip = await speak(text);
+      if (!clip) return new Response('TTS failed', { status: 502 });
+      // No browser caching, so stale clips can't outlive a server change
+      return new Response(clip, { headers: { 'Content-Type': 'audio/wav' } });
     },
     // pathname is normalized, so '..' can't escape the art dir
     '/art/*': async (req) => {

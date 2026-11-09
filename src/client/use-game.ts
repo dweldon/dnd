@@ -8,6 +8,7 @@ const TOKEN_KEY = 'token';
 export function useGame() {
   const [view, setView] = useState<View | null>(null);
   const [thinking, setThinking] = useState(false);
+  const [voice, setVoice] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socket = useRef<WebSocket | null>(null);
 
@@ -26,6 +27,7 @@ export function useGame() {
         if (msg.type === 'state') {
           setView(msg.view);
           setThinking(msg.thinking);
+          setVoice(msg.voice);
         } else if (msg.type === 'token') {
           localStorage.setItem(TOKEN_KEY, msg.token);
         } else {
@@ -49,5 +51,5 @@ export function useGame() {
     socket.current?.send(JSON.stringify(msg));
   };
 
-  return { view, thinking, error, send };
+  return { view, thinking, voice, error, send };
 }

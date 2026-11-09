@@ -6,6 +6,7 @@ A simple, workplace-friendly multiplayer D&D game. Players join a shared lobby, 
 
 - `PORT` (optional): Server port (default `3000`).
 - `ANTHROPIC_KEY` (optional): Anthropic API key for the AI DM. Without it, a basic keyword parser is used.
+- `GEMINI_KEY` (optional): Gemini API key for the DM's narrator voice. Without it, the game is silent apart from sound effects.
 
 Bun loads a `.env` file automatically.
 

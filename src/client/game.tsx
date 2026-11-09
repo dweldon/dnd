@@ -211,7 +211,7 @@ function Header({
           type="button"
           className="cursor-pointer text-sm"
           onClick={toggleMute}
-          title={muted ? 'Unmute sounds' : 'Mute sounds'}
+          title={muted ? 'Unmute sound and voice' : 'Mute sound and voice'}
         >
           {muted ? '🔇' : '🔊'}
         </button>

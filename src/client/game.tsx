@@ -1,5 +1,4 @@
 import {
-  type DragEvent,
   type ReactNode,
   type RefObject,
   useEffect,
@@ -16,14 +15,15 @@ import { soundOn, speechOn } from './settings';
 import { startTour } from './tour';
 import {
   art,
+  describeBonus,
   describeEffect,
   HpBar,
+  InfoCard,
   Panel,
   Portrait,
   ResetButton,
   type Send,
   Toggle,
-  Tooltip,
   useScrollToEnd,
   useSecretReset,
 } from './ui';
@@ -36,96 +36,82 @@ type Props = {
   send: Send;
 };
 
-// Who a dragged command can be dropped on
-type Target = 'ally' | 'foe';
-type Drag = { command: string; on: Target };
+type Act = (text: string) => void;
 
-// Shared by panels that fill the chat box or take part in drag and drop
-type Shortcuts = {
-  fill: (text: string) => void;
-  drag: Drag | null;
-  setDrag: (drag: Drag | null) => void;
-};
+// Who an attack, ability, or item can be aimed at
+type Target = 'foe' | 'ally' | 'foes' | 'party' | 'self';
 
-// Only single-target effects can be dragged onto someone
-function targetOf(effect: Effect): Target | null {
-  if (effect.kind === 'weaken') return 'foe';
-  if (effect.kind === 'heal' && effect.area === 'one') return 'ally';
-  if (effect.kind === 'damage' && effect.area === 'one') return 'foe';
-  return null;
+function targetOf(effect: Effect): Target {
+  switch (effect.kind) {
+    case 'weaken':
+      return 'foe';
+    case 'damage':
+      return effect.area === 'one' ? 'foe' : 'foes';
+    case 'heal':
+      return effect.area === 'one' ? 'ally' : effect.area;
+  }
 }
 
-const dropText = (command: string, name: string) =>
+// A selectable attack, ability, or item; passive gear has no target
+type Option = {
+  key: string;
+  title: string;
+  icon?: string;
+  text: string;
+  stats: string[];
+  command: string;
+  target: Target | null;
+  wait: number;
+};
+
+const turns = (n: number) => `${n} turn${n > 1 ? 's' : ''}`;
+
+const aimText = (command: string, name: string) =>
   command === 'attack' ? `attack ${name}` : `${command} on ${name}`;
 
 const clickable = 'cursor-pointer select-none';
 
-// Hoverable list row; grip brightens via group-hover
-const rowBase = '-mx-1 rounded px-1';
-const row = `group ${rowBase} hover:bg-stone-800/70`;
-
-function Grip() {
-  return (
-    <span className="mr-1.5 text-stone-600 group-hover:text-stone-300">⠿</span>
-  );
-}
-
-// Handlers for something you can click or drag
-function source(
-  { fill, setDrag }: Shortcuts,
-  command: string,
-  on: Target | null,
-  ready = true,
-) {
-  if (!ready) return { className: 'cursor-not-allowed select-none' };
-  return {
-    className: clickable,
-    onClick: () => fill(command),
-    draggable: !!on,
-    onDragStart: (e: DragEvent) => {
-      e.dataTransfer.setData('text/plain', command); // Firefox needs data to drag
-      if (on) setDrag({ command, on });
-    },
-    onDragEnd: () => setDrag(null),
-  };
-}
-
-// Handlers and highlight for something you can drop on
-function dropZone({ fill, drag }: Shortcuts, on: Target, name: string) {
-  if (drag?.on !== on) return { className: '' };
-  return {
-    className: 'bg-sky-500/10 ring-2 ring-sky-400',
-    onDragOver: (e: DragEvent) => e.preventDefault(),
-    onDrop: (e: DragEvent) => {
-      e.preventDefault();
-      fill(dropText(drag.command, name));
-    },
-  };
-}
+// Touch screens pop up a keyboard on focus, so skip it there
+const isTouch = () => matchMedia('(pointer: coarse)').matches;
 
 export function Game({ view, thinking, voice, error, send }: Props) {
   const myTurn = view.turn === view.you;
   const canAct = myTurn && !thinking;
   const [draft, setDraft] = useState('');
-  const [drag, setDrag] = useState<Drag | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
-  // Replace the draft and focus the box with the cursor at the end
+  // Replace the draft, flash the box, and bring it into view
   const fill = (text: string) => {
     setDraft(text);
+    const el = input.current;
+    if (!el) return;
+    el.classList.remove('fill-flash');
+    void el.offsetWidth; // restart the animation
+    el.classList.add('fill-flash');
     requestAnimationFrame(() => {
-      input.current?.focus();
-      input.current?.setSelectionRange(text.length, text.length);
+      if (isTouch()) {
+        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      } else {
+        el.focus();
+        el.setSelectionRange(text.length, text.length);
+      }
     });
   };
-  const sc: Shortcuts = { fill, drag, setDrag };
+  // On your turn a click acts; otherwise it waits in the draft
+  const act = (text: string) => {
+    if (canAct) send({ type: 'chat', text });
+    else fill(text);
+  };
 
   useEffect(() => {
-    if (canAct) input.current?.focus();
+    if (canAct && !isTouch()) input.current?.focus();
   }, [canAct]);
 
   // After the focus effect so the popover keeps focus
-  useEffect(() => startTour(), []);
+  useEffect(
+    () => startTour(view.you ? CHARACTERS[view.you] : undefined),
+    [view.you],
+  );
 
   // Flag the browser tab so players in other tabs notice
   useEffect(() => {
@@ -139,14 +125,14 @@ export function Game({ view, thinking, voice, error, send }: Props) {
       <Header view={view} thinking={thinking} voice={voice} send={send} />
       <div className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[17rem_auto_minmax(20rem,1fr)]">
         <div className="min-h-0 space-y-3 overflow-y-auto">
-          <You view={view} sc={sc} />
-          <Party view={view} sc={sc} />
+          <You view={view} act={act} />
+          <Party view={view} act={act} />
         </div>
         <div className="min-h-0 space-y-3 overflow-y-auto">
           <Panel id="tour-map" title="Map">
-            <Compass view={view} fill={fill} />
+            <Compass view={view} act={act} />
           </Panel>
-          <Room view={view} sc={sc} />
+          <Room view={view} act={act} />
         </div>
         <div className="flex min-h-0 flex-col gap-3">
           <Command
@@ -157,7 +143,7 @@ export function Game({ view, thinking, voice, error, send }: Props) {
             draft={draft}
             setDraft={setDraft}
             input={input}
-            fill={fill}
+            act={act}
           />
           <Chat view={view} thinking={thinking} />
         </div>
@@ -223,18 +209,73 @@ function Header({
   );
 }
 
-// Your hero: HP, attack, abilities with cooldowns, items
-function You({ view, sc }: { view: View; sc: Shortcuts }) {
+// Your hero: HP, attack, abilities with cooldowns, items, and a target picker
+function You({ view, act }: { view: View; act: Act }) {
+  const [selKey, setSelKey] = useState<string | null>(null);
+  // Close the details box when clicking elsewhere
+  useEffect(() => {
+    if (!selKey) return;
+    const close = (e: PointerEvent) => {
+      if (!(e.target as Element).closest('[data-keep-open]')) setSelKey(null);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [selKey]);
   const me = view.players.find((p) => p.characterId === view.you);
   if (!me) return null;
   const c: Character = CHARACTERS[me.characterId];
   const { bonus } = me;
-  const attack = source(sc, 'attack', 'foe');
-  const gear = [
-    bonus.ac && `+${bonus.ac} AC`,
-    bonus.attack && `+${bonus.attack} to hit`,
-    bonus.damage && `+${bonus.damage} damage`,
-  ].filter(Boolean);
+
+  const attack: Option = {
+    key: 'attack',
+    title: c.attack.name,
+    text: 'Your basic attack.',
+    stats: [
+      `+${c.attack.bonus + bonus.attack} to hit`,
+      `Damage ${c.attack.damage}${bonus.damage ? `+${bonus.damage}` : ''}`,
+      'One enemy',
+      'Usable every turn',
+    ],
+    command: 'attack',
+    target: 'foe',
+    wait: 0,
+  };
+  const abilities: Option[] = c.abilities.map((a) => {
+    const wait = me.cooldowns[a.id] ?? 0;
+    return {
+      key: a.id,
+      title: a.name,
+      text: a.description,
+      stats: [
+        ...describeEffect(a.effect),
+        `Usable every ${a.cooldown + 1} turns`,
+      ],
+      command: `cast ${a.name}`,
+      target: targetOf(a.effect),
+      wait,
+    };
+  });
+  const items: Option[] = me.items.map((id, i) => {
+    const item: Item = ITEMS[id];
+    return {
+      key: `${id}-${i}`, // items can repeat
+      title: item.name,
+      icon: item.icon,
+      text: item.description,
+      stats: item.effect
+        ? [...describeEffect(item.effect), 'Single use']
+        : [describeBonus(item.bonus ?? {}), 'Always active'],
+      command: `use ${item.name}`,
+      target: item.effect ? targetOf(item.effect) : null,
+      wait: 0,
+    };
+  });
+  // Derived so a used-up item drops its selection
+  const sel = [attack, ...abilities, ...items].find((o) => o.key === selKey);
+  const toggle = (o: Option) => setSelKey(sel?.key === o.key ? null : o.key);
+  const ring = (o: Option) =>
+    sel?.key === o.key ? 'bg-amber-500/15 ring-1 ring-amber-400' : '';
+
   return (
     <Panel title="You">
       <div className="flex gap-3">
@@ -252,95 +293,190 @@ function You({ view, sc }: { view: View; sc: Shortcuts }) {
       </div>
 
       <ul id="tour-abilities" className="mt-3 space-y-1.5 text-sm">
-        <li>
-          <Tooltip
-            {...attack}
-            title={c.attack.name}
-            text="Your basic attack."
-            stats={[
-              `+${c.attack.bonus + bonus.attack} to hit`,
-              `Damage ${c.attack.damage}${bonus.damage ? `+${bonus.damage}` : ''}`,
-              'One enemy',
-              'Usable every turn',
-            ]}
-            className={`flex items-center justify-between gap-2 ${row} ${attack.className}`}
-          >
-            <span>
-              <Grip />
-              {c.attack.name}{' '}
-              <span className="text-xs text-stone-500">{c.attack.damage}</span>
-            </span>
-            <Chip ready>Always</Chip>
-          </Tooltip>
-        </li>
-        {c.abilities.map((a) => {
-          const wait = me.cooldowns[a.id] ?? 0;
-          const src = source(sc, `cast ${a.name}`, targetOf(a.effect), !wait);
-          return (
-            <li key={a.id}>
-              <Tooltip
-                {...src}
-                title={a.name}
-                text={a.description}
-                stats={[
-                  ...describeEffect(a.effect),
-                  `Usable every ${a.cooldown + 1} turns`,
-                  wait
-                    ? `Ready in ${wait} turn${wait > 1 ? 's' : ''}`
-                    : 'Ready now',
-                ]}
-                className={`flex items-center justify-between gap-2 ${wait ? rowBase : row} ${src.className}`}
-              >
-                <span>
-                  <Grip />
-                  {a.name}
-                </span>
-                <Chip ready={!wait}>
-                  {wait ? `${wait} turn${wait > 1 ? 's' : ''}` : 'Ready'}
-                </Chip>
-              </Tooltip>
-            </li>
-          );
-        })}
+        {[attack, ...abilities].map((o) => (
+          <li key={o.key}>
+            <button
+              type="button"
+              data-keep-open
+              onClick={() => toggle(o)}
+              className={`-mx-1 flex w-[calc(100%+0.5rem)] items-center justify-between gap-2 rounded px-1 text-left hover:bg-stone-800/70 ${clickable} ${ring(o)}`}
+            >
+              <span className={o.wait ? 'text-stone-500' : ''}>
+                {o.title}{' '}
+                {o === attack && (
+                  <span className="text-xs text-stone-500">
+                    {c.attack.damage}
+                  </span>
+                )}
+              </span>
+              <Chip ready={!o.wait}>
+                {o === attack ? 'Always' : o.wait ? turns(o.wait) : 'Ready'}
+              </Chip>
+            </button>
+          </li>
+        ))}
       </ul>
 
       <div id="tour-items" className="mt-3 flex flex-wrap gap-2">
-        {me.items.map((id, i) => {
-          const item: Item = ITEMS[id];
-          const src = source(sc, `use ${item.name}`, targetOf(item.effect));
-          return (
-            <Tooltip
-              {...src}
-              // biome-ignore lint/suspicious/noArrayIndexKey: items can repeat
-              key={`${id}-${i}`}
-              title={item.name}
-              icon={item.icon}
-              text={item.description}
-              stats={[
-                ...describeEffect(item.effect),
-                item.effect.kind === 'equip' ? 'Equip once' : 'Single use',
-              ]}
-              className={`flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs hover:border-stone-500 hover:bg-stone-700 ${src.className}`}
-            >
-              <img
-                src={art(item.icon)}
-                alt=""
-                width={24}
-                height={24}
-                className="pixel"
-              />
-              {item.name}
-            </Tooltip>
-          );
-        })}
-        {!me.items.length && (
+        {items.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            data-keep-open
+            onClick={() => toggle(o)}
+            className={`flex items-center gap-1.5 rounded border border-stone-700 bg-stone-800 px-1.5 py-1 text-xs hover:border-stone-500 hover:bg-stone-700 ${clickable} ${ring(o)}`}
+          >
+            <img
+              src={art(o.icon ?? '')}
+              alt=""
+              width={24}
+              height={24}
+              className="pixel"
+            />
+            {o.title}
+          </button>
+        ))}
+        {!items.length && (
           <span className="text-xs text-stone-500">No items</span>
         )}
       </div>
-      {gear.length > 0 && (
-        <p className="mt-2 text-xs text-emerald-300">Gear: {gear.join(', ')}</p>
+      {sel && (
+        <Targets
+          key={sel.key}
+          opt={sel}
+          view={view}
+          pick={(text) => {
+            act(text);
+            setSelKey(null);
+          }}
+        />
       )}
     </Panel>
+  );
+}
+
+const pickButton =
+  'flex items-center gap-1.5 rounded border border-sky-500/60 bg-sky-500/10 px-2 py-1 text-xs text-sky-100 hover:bg-sky-500/25 disabled:cursor-not-allowed disabled:border-stone-700 disabled:bg-transparent disabled:text-stone-500';
+
+// Details for the selected option and who it can be used on
+function Targets({
+  opt,
+  view,
+  pick,
+}: {
+  opt: Option;
+  view: View;
+  pick: (text: string) => void;
+}) {
+  const monsters = view.room?.monsters ?? [];
+  const off = opt.wait > 0;
+
+  const button = (label: ReactNode, text: string, key?: string) => (
+    <button
+      key={key}
+      type="button"
+      disabled={off}
+      onClick={() => pick(text)}
+      className={pickButton}
+    >
+      {label}
+    </button>
+  );
+  const none = <p className="text-xs text-stone-500">No targets here</p>;
+
+  const single = (names: { key: string; name: string; tag?: string }[]) =>
+    names.length ? (
+      <div className="flex flex-wrap gap-1.5">
+        {names.map((n) =>
+          button(
+            <>
+              {n.name}
+              {n.tag && <Tag down={n.tag === 'Down'}>{n.tag}</Tag>}
+            </>,
+            aimText(opt.command, n.name),
+            n.key,
+          ),
+        )}
+      </div>
+    ) : (
+      none
+    );
+
+  // Everyone affected at once, confirmed with one button
+  const group = (names: string[], label: string) =>
+    names.length ? (
+      <>
+        <div className="mb-1.5 rounded border border-dashed border-sky-500/60 p-1.5">
+          <div className="mb-1 text-[10px] text-sky-300 uppercase">
+            Affects everyone
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {names.map((n) => (
+              <span
+                key={n}
+                className="rounded bg-stone-800 px-1.5 py-0.5 text-xs"
+              >
+                {n}
+              </span>
+            ))}
+          </div>
+        </div>
+        {button(label, opt.command)}
+      </>
+    ) : (
+      none
+    );
+
+  const foes = monsters.map((m) => ({ key: m.id, name: m.name }));
+  // You first, then alphabetical
+  const party = view.players.toSorted(
+    (a, b) =>
+      Number(b.characterId === view.you) - Number(a.characterId === view.you) ||
+      a.name.localeCompare(b.name),
+  );
+  const allies = party.map((p) => ({
+    key: p.characterId,
+    name: p.name,
+    tag: p.hp === 0 ? 'Down' : p.characterId === view.you ? 'You' : undefined,
+  }));
+  const choices =
+    opt.target &&
+    {
+      foe: () => single(foes),
+      ally: () => single(allies),
+      foes: () =>
+        group(
+          monsters.map((m) => m.name),
+          'Hit all enemies',
+        ),
+      party: () =>
+        group(
+          party.map((p) => p.name),
+          'Heal whole party',
+        ),
+      self: () => button('On yourself', opt.command),
+    }[opt.target];
+
+  return (
+    <div
+      data-keep-open
+      className="tooltip mt-3 rounded-lg border border-amber-500/40 bg-stone-950/60 p-3 text-xs"
+    >
+      <InfoCard
+        title={opt.title}
+        icon={opt.icon}
+        text={opt.text}
+        stats={opt.stats}
+      />
+      {choices && (
+        <div className="mt-2 border-t border-stone-700 pt-2">
+          <div className="mb-1.5 text-stone-400">
+            {off ? `Ready in ${turns(opt.wait)}` : 'Choose a target:'}
+          </div>
+          {choices()}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -354,22 +490,20 @@ function Chip({ ready, children }: { ready: boolean; children: ReactNode }) {
   );
 }
 
-function Party({ view, sc }: { view: View; sc: Shortcuts }) {
+function Party({ view, act }: { view: View; act: Act }) {
   return (
     <Panel title="Party">
       <ul className="space-y-2">
         {view.players.map((p) => {
           const c: Character = CHARACTERS[p.characterId];
           const active = p.characterId === view.turn;
-          const zone = dropZone(sc, 'ally', p.name);
           const down = p.hp === 0;
           return (
             // biome-ignore lint/a11y/useKeyWithClickEvents: mouse shortcut; typing still works
             <li
               key={p.characterId}
-              {...zone}
-              onClick={down ? () => sc.fill(`revive ${p.name}`) : undefined}
-              className={`flex items-center gap-2 rounded p-1 ${zone.className || (active ? 'bg-amber-500/10 ring-1 ring-amber-400' : '')} ${down ? clickable : ''}`}
+              onClick={down ? () => act(`revive ${p.name}`) : undefined}
+              className={`flex items-center gap-2 rounded p-1 ${active ? 'bg-amber-500/10 ring-1 ring-amber-400' : ''} ${down ? clickable : ''}`}
             >
               <Portrait src={c.portrait} size={40} hp={p.hp} />
               <div className="min-w-0">
@@ -405,7 +539,7 @@ function Tag({
 }
 
 // Current room and its monsters
-function Room({ view, sc }: { view: View; sc: Shortcuts }) {
+function Room({ view, act }: { view: View; act: Act }) {
   const { room } = view;
   return (
     <Panel id="tour-room" title={room?.name ?? 'Corridor'} className="min-w-0">
@@ -426,34 +560,30 @@ function Room({ view, sc }: { view: View; sc: Shortcuts }) {
       )}
       {room?.monsters.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
-          {room.monsters.map((m) => {
-            const zone = dropZone(sc, 'foe', m.name);
-            return (
-              // biome-ignore lint/a11y/noStaticElementInteractions: mouse shortcuts; typing still works
-              // biome-ignore lint/a11y/useKeyWithClickEvents: mouse shortcuts; typing still works
-              <div
-                key={m.id}
-                {...zone}
-                onClick={() => sc.fill(dropText('attack', m.name))}
-                className={`max-w-64 min-w-40 flex-1 rounded border border-red-900/60 bg-red-950/30 p-2 ${clickable} ${zone.className}`}
-              >
-                <div className="flex items-center gap-2">
-                  <img
-                    src={art(m.art)}
-                    alt=""
-                    width={40}
-                    height={40}
-                    className="pixel"
-                  />
-                  <div className="min-w-0 text-sm">
-                    <div className="leading-tight break-words">{m.name}</div>
-                    {m.stunned && <Tag>Stunned</Tag>}
-                  </div>
+          {room.monsters.map((m) => (
+            // biome-ignore lint/a11y/noStaticElementInteractions: mouse shortcuts; typing still works
+            // biome-ignore lint/a11y/useKeyWithClickEvents: mouse shortcuts; typing still works
+            <div
+              key={m.id}
+              onClick={() => act(aimText('attack', m.name))}
+              className={`max-w-64 min-w-40 flex-1 rounded border border-red-900/60 bg-red-950/30 p-2 ${clickable}`}
+            >
+              <div className="flex items-center gap-2">
+                <img
+                  src={art(m.art)}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="pixel"
+                />
+                <div className="min-w-0 text-sm">
+                  <div className="leading-tight break-words">{m.name}</div>
+                  {m.stunned && <Tag>Stunned</Tag>}
                 </div>
-                <HpBar hp={m.hp} max={m.maxHp} />
               </div>
-            );
-          })}
+              <HpBar hp={m.hp} max={m.maxHp} />
+            </div>
+          ))}
         </div>
       ) : null}
     </Panel>
@@ -505,13 +635,13 @@ function Command({
   draft,
   setDraft,
   input,
-  fill,
+  act,
 }: Omit<Props, 'view' | 'voice'> & {
   myTurn: boolean;
   draft: string;
   setDraft: (text: string) => void;
   input: RefObject<HTMLTextAreaElement | null>;
-  fill: (text: string) => void;
+  act: (text: string) => void;
 }) {
   const canType = myTurn && !thinking;
   const submit = () => {
@@ -545,11 +675,6 @@ function Command({
               submit();
             }
           }}
-          // Dropped commands replace the draft instead of splicing into it
-          onDrop={(e) => {
-            e.preventDefault();
-            fill(e.dataTransfer.getData('text/plain'));
-          }}
           placeholder={
             myTurn
               ? thinking
@@ -569,7 +694,7 @@ function Command({
               key={cmd}
               type="button"
               className="rounded border border-stone-700 px-3 py-1.5 text-sm text-stone-300 capitalize hover:text-stone-100"
-              onClick={() => fill(cmd)}
+              onClick={() => act(cmd)}
             >
               {cmd}
             </button>

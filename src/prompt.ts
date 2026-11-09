@@ -8,7 +8,7 @@ import {
   type Player,
   roomAt,
 } from './game/engine';
-import { ITEMS } from './game/items';
+import { ITEMS, type Item } from './game/items';
 import { ROOMS } from './game/map';
 import { MONSTERS } from './game/monsters';
 import { INTRO, TITLE, VICTORY } from './game/story';
@@ -48,8 +48,6 @@ function effectText(e: Effect) {
       return `heals ${e.dice} to ${e.area === 'one' ? 'one ally' : e.area}`;
     case 'weaken':
       return `lowers one enemy's AC by ${e.ac}`;
-    case 'equip':
-      return 'permanent bonus once used';
   }
 }
 
@@ -69,7 +67,8 @@ const monsters = Object.entries(MONSTERS).map(
 );
 
 const items = Object.entries(ITEMS).map(
-  ([id, i]) => `- ${id}: ${i.name}, ${effectText(i.effect)}. ${i.description}`,
+  ([id, i]: [string, Item]) =>
+    `- ${id}: ${i.name}, ${i.effect ? effectText(i.effect) : 'passive bonus while carried'}. ${i.description}`,
 );
 
 const rooms = ROOMS.map((r) => {
@@ -157,7 +156,13 @@ export const TOOLS = [
     'use',
     'Use an item the active hero carries.',
     {
-      item: { type: 'string', enum: Object.keys(ITEMS) },
+      // Passive gear can't be used
+      item: {
+        type: 'string',
+        enum: Object.entries(ITEMS)
+          .filter(([, i]: [string, Item]) => i.effect)
+          .map(([id]) => id),
+      },
       target: target('Monster id for bombs and decaf, hero id for potions.'),
     },
     ['item'],

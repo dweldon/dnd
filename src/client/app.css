@@ -35,6 +35,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .turn-flash,
+  .fill-flash,
   .zoom-in {
     animation-duration: 0.01s;
   }
@@ -51,7 +52,22 @@
   animation: hurt-flash 0.8s ease-out;
 }
 
-/* Hover card fade-in */
+/* Glow on the action box when a click fills it.
+   color-mix lives outside the keyframes: Tailwind's @supports fallback
+   for it is invalid inside @keyframes and empties the block. */
+@keyframes fill-flash {
+  0%,
+  30% {
+    box-shadow: 0 0 0 4px var(--color-sky-400);
+    background-color: var(--fill-flash-bg);
+  }
+}
+.fill-flash {
+  --fill-flash-bg: color-mix(in oklab, var(--color-sky-400) 25%, transparent);
+  animation: fill-flash 0.7s ease-out;
+}
+
+/* Hover card and target panel fade-in */
 @keyframes tooltip-in {
   from {
     opacity: 0;

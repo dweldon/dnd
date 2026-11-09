@@ -182,14 +182,14 @@ const DIRS: { dir: Dir; label: string; pos: string }[] = [
   { dir: 'south', label: 'S', pos: 'bottom-0 left-1/2 -translate-x-1/2' },
 ];
 
-// Map with direction buttons on its rim; lit ones are open and fill the chat box
+// Map with direction buttons on its rim; lit ones are open
 // Buttons hide on small screens where there's no room around the map
 export function Compass({
   view,
-  fill,
+  act,
 }: {
   view: View;
-  fill: (text: string) => void;
+  act: (text: string) => void;
 }) {
   return (
     <div className="relative mx-auto w-fit max-w-full sm:p-9">
@@ -202,7 +202,7 @@ export function Compass({
             type="button"
             title={`move ${dir}`}
             disabled={!open}
-            onClick={() => fill(`move ${dir}`)}
+            onClick={() => act(`move ${dir}`)}
             className={`absolute ${pos} hidden size-7 rounded border bg-stone-900/90 font-pixel text-[10px] sm:block ${
               open
                 ? 'border-amber-500 text-amber-300 enabled:hover:bg-amber-900'

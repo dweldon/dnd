@@ -1,9 +1,11 @@
-import type { Effect } from './types';
+import type { Bonus, Effect } from './types';
 
 export type Item = {
   name: string;
   description: string;
-  effect: Effect;
+  // Usable items have an effect; gear has a passive bonus
+  effect?: Effect;
+  bonus?: Bonus;
   icon: string;
 };
 
@@ -29,21 +31,21 @@ export const ITEMS = {
   'decaf-dust': {
     name: 'Emergency Decaf',
     description:
-      "A jar of decaf powder. Slip it into the Goblin King's coffee and his jittery reflexes fade.",
+      'A jar of decaf powder. Toss it at a foe and their jittery reflexes fade. -4 AC.',
     effect: { kind: 'weaken', ac: 4 },
     icon: 'items/decaf-dust.svg',
   },
   'ring-of-protection': {
     name: 'Ring of Protection',
     description: 'A silver ring that makes blows glance away. +2 AC.',
-    effect: { kind: 'equip', ac: 2 },
+    bonus: { ac: 2 },
     icon: 'items/ring-of-protection.svg',
   },
   'early-riser-gauntlets': {
     name: 'Gauntlets of the Early Riser',
     description:
       'Sunrise-orange gauntlets that hum with morning energy. +1 to hit, +2 damage.',
-    effect: { kind: 'equip', attack: 1, damage: 2 },
+    bonus: { attack: 1, damage: 2 },
     icon: 'items/early-riser-gauntlets.svg',
   },
 } satisfies Record<string, Item>;

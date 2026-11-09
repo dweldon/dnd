@@ -17,7 +17,6 @@ export type Sound =
   | 'down'
   | 'secret'
   | 'loot'
-  | 'equip'
   | 'combat'
   | 'calm'
   | 'victory'
@@ -32,7 +31,6 @@ export type Player = {
   // Turns until each ability is usable again
   cooldowns: Record<string, number>;
   items: ItemId[];
-  bonus: { ac: number; attack: number; damage: number };
 };
 
 export type MonsterState = {
@@ -212,7 +210,6 @@ export function join(
     hp: c.maxHp,
     cooldowns: {},
     items: [...c.items],
-    bonus: { ac: 0, attack: 0, damage: 0 },
   };
   if (i >= 0) {
     state.players[i] = player;
@@ -319,6 +316,7 @@ function resolve(state: GameState, player: Player, action: Action) {
       const i = player.items.indexOf(action.item);
       if (i < 0) fail("You don't have that item.");
       const item: Item = ITEMS[action.item];
+      if (!item.effect) fail('That item is always active.');
       applyEffect(state, player, item.effect, action.target, item.name);
       player.items.splice(i, 1);
       break;
@@ -462,6 +460,18 @@ function enter(state: GameState, player?: Player) {
   }
 }
 
+// Passive bonuses from carried equipment
+export function bonus(player: Player) {
+  const total = { ac: 0, attack: 0, damage: 0 };
+  for (const id of player.items) {
+    const { bonus: b }: Item = ITEMS[id];
+    total.ac += b?.ac ?? 0;
+    total.attack += b?.attack ?? 0;
+    total.damage += b?.damage ?? 0;
+  }
+  return total;
+}
+
 function loot(state: GameState, player: Player) {
   const room = roomAt(state.pos);
   const items = room ? state.rooms[room.id]?.loot : undefined;
@@ -503,13 +513,14 @@ function strike(
   hit: { dice: Dice; autoHit?: boolean; stun?: boolean },
 ) {
   const who = `${player.name} ${verb} ${m.name}`;
-  const toHit = d20() + hero(player).attack.bonus + player.bonus.attack;
+  const gear = bonus(player);
+  const toHit = d20() + hero(player).attack.bonus + gear.attack;
   if (!hit.autoHit && toHit < kind(m).ac - m.acPenalty) {
     state.log.push(`${who}: miss`);
     sfx(state, 'miss');
     return;
   }
-  const dmg = Math.max(0, roll(hit.dice) + player.bonus.damage);
+  const dmg = Math.max(0, roll(hit.dice) + gear.damage);
   m.hp = Math.max(0, m.hp - dmg);
   const stunned = Boolean(hit.stun) && m.hp > 0;
   m.stunned ||= stunned;
@@ -563,13 +574,6 @@ function applyEffect(
       );
       break;
     }
-    case 'equip':
-      player.bonus.ac += effect.ac ?? 0;
-      player.bonus.attack += effect.attack ?? 0;
-      player.bonus.damage += effect.damage ?? 0;
-      state.log.push(`${player.name} equips ${label}.`);
-      sfx(state, 'equip');
-      break;
   }
 }
 
@@ -678,7 +682,7 @@ function monsterPhase(state: GameState, narration: string[]) {
       const standing = state.players.filter((p) => p.hp > 0);
       if (!standing.length) break;
       const p = pick(standing);
-      const hit = d20() + t.attack.bonus >= hero(p).ac + p.bonus.ac;
+      const hit = d20() + t.attack.bonus >= hero(p).ac + bonus(p).ac;
       const dmg = hit ? Math.round(roll(t.attack.damage) * state.dmgScale) : 0;
       p.hp = Math.max(0, p.hp - dmg);
       state.log.push(

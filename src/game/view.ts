@@ -1,4 +1,12 @@
-import { alive, exits, type GameState, hero, key, roomAt } from './engine';
+import {
+  alive,
+  bonus,
+  exits,
+  type GameState,
+  hero,
+  key,
+  roomAt,
+} from './engine';
 import { ROOMS, TILES } from './map';
 import { MONSTERS } from './monsters';
 
@@ -25,7 +33,7 @@ export function view(state: GameState, token: string) {
       maxHp: hero(p).maxHp,
       cooldowns: p.cooldowns,
       items: p.items,
-      bonus: p.bonus,
+      bonus: bonus(p),
     })),
     // ' ' is unrevealed, 'F' a found secret door
     map: state.tiles.map((row, y) =>

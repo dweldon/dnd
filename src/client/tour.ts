@@ -1,10 +1,21 @@
 import { driver } from 'driver.js';
+import type { Character } from '../game/characters';
 import { holdSpeech } from './speech';
 
 const KEY = 'tour-seen';
 
+// A typed command this hero might use, e.g. "cast magic missile on the goblin"
+function example(c?: Character) {
+  const a = c?.abilities.find(
+    (a) => a.effect.kind !== 'weaken' && a.effect.area === 'one',
+  );
+  if (!a) return 'cast healing word on the wizard';
+  const target = a.effect.kind === 'heal' ? 'the wizard' : 'the goblin';
+  return `cast ${a.name.toLowerCase()} on ${target}`;
+}
+
 // Shows once per browser; can't be dismissed, only finished. Returns a cleanup.
-export function startTour(): (() => void) | undefined {
+export function startTour(c?: Character): (() => void) | undefined {
   try {
     if (localStorage.getItem(KEY)) return;
   } catch {
@@ -16,7 +27,7 @@ export function startTour(): (() => void) | undefined {
     showProgress: true,
     // No ✕, Esc, or overlay click; Done on the last step still ends it
     allowClose: false,
-    // Look, don't touch: keeps Send and drags out of the tour
+    // Look, don't touch: keeps Send out of the tour
     disableActiveInteraction: true,
     steps: [
       {
@@ -29,8 +40,7 @@ export function startTour(): (() => void) | undefined {
         element: '#tour-abilities',
         popover: {
           title: 'Attack & Spells',
-          description:
-            'Click one, or drag it onto a monster or ally. No need to type out "attack" or "cast healing word".',
+          description: `Tap one to see what it does and pick a target. No need to type "${example(c)}".`,
         },
       },
       {
@@ -38,7 +48,7 @@ export function startTour(): (() => void) | undefined {
         popover: {
           title: 'Items',
           description:
-            'Same idea: click an item or drag it onto a target. Saves you typing something like "use the healing potion on the wizard".',
+            'Same idea: tap an item to see what it does and who to use it on.',
         },
       },
       {
@@ -54,7 +64,7 @@ export function startTour(): (() => void) | undefined {
         popover: {
           title: 'The Room',
           description:
-            "The room you're in. If monsters show up, click one to set up an attack on it.",
+            "The room you're in. If monsters show up, click one to attack it.",
         },
       },
       {
@@ -64,7 +74,7 @@ export function startTour(): (() => void) | undefined {
           align: 'start',
           title: 'Your Action',
           description:
-            'Every click fills in your action here. You can also manually type everything if you prefer. Nothing happens until you press Send, and you can only send on your turn.',
+            'On your turn, clicks happen right away. Otherwise they fill in your action here, ready to send when your turn comes. You can also type anything you like.',
         },
       },
     ],

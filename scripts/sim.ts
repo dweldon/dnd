@@ -137,7 +137,7 @@ function legFor(room: string, from: number) {
 }
 
 const potions = (p: Player) =>
-  p.items.filter((i) => item(i).effect.kind === 'heal');
+  p.items.filter((i) => item(i).effect?.kind === 'heal');
 
 // Heal ability on low allies (party heal for 2+), or self-heal
 function healAbility(state: GameState, p: Player): Action | undefined {
@@ -174,9 +174,7 @@ function combat(state: GameState, p: Player): Action {
     return { type: 'use', item: potion, target: hurt.characterId };
   }
 
-  // Setup: equip, weaken the toughest foe, stun the biggest threat
-  const equip = p.items.find((i) => item(i).effect.kind === 'equip');
-  if (equip) return { type: 'use', item: equip };
+  // Setup: weaken the toughest foe, stun the biggest threat
   const boss = foes.find((m) => kind(m).boss);
   if (boss && p.items.includes('decaf-dust')) {
     return { type: 'use', item: 'decaf-dust', target: boss.id };
@@ -215,9 +213,6 @@ function explore(state: GameState, p: Player, nav: Nav, profile: Bot): Action {
   const room = roomAt(state.pos);
   if (!room) throw new Error('Lost in a corridor');
   const rs = state.rooms[room.id];
-
-  const equip = p.items.find((i) => item(i).effect.kind === 'equip');
-  if (equip) return { type: 'use', item: equip };
 
   const heal = healAbility(state, p);
   if (heal) return heal;
@@ -352,7 +347,7 @@ function play(party: CharacterId[], profile: Profile): Stats {
     }
     stats.turns++;
     const drank =
-      action.type === 'use' && item(action.item).effect.kind === 'heal';
+      action.type === 'use' && item(action.item).effect?.kind === 'heal';
     if (drank) stats.potionsUsed++;
     stats.potionsHad += Math.max(0, partyPotions(state) - pots + +drank);
     if (stats.potionsUsed && !partyPotions(state)) stats.ranOut = true;

@@ -15,6 +15,7 @@ export type Effect =
     }
   | { kind: 'heal'; dice: Dice; area: 'self' | 'one' | 'party' }
   // Lowers one monster's AC for the rest of the fight
-  | { kind: 'weaken'; ac: number }
-  // Permanent bonus for whoever uses the item
-  | { kind: 'equip'; ac?: number; attack?: number; damage?: number };
+  | { kind: 'weaken'; ac: number };
+
+// Passive bonus from carried gear
+export type Bonus = { ac?: number; attack?: number; damage?: number };

@@ -119,11 +119,6 @@ const SOUNDS: Record<Sound, (t: number) => void> = {
     tone(t, 1319, 0.1, 'square', 0.3);
     tone(t + 0.08, 1760, 0.2, 'square', 0.3);
   },
-  equip: (t) => {
-    noise(t, 0.04, 0.5, 4000, 'highpass');
-    tone(t, 1200, 0.15, 'triangle', 0.6);
-    tone(t, 1810, 0.25, 'sine', 0.4);
-  },
   combat: (t) => {
     tone(t, 90, 0.35, 'sine', 1.5, 50);
     noise(t, 0.2, 0.8, 200);

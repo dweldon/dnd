@@ -1,7 +1,7 @@
 import type { ServerWebSocket } from 'bun';
 import index from './client/index.html';
 import { respond } from './dm';
-import { join, newGame, start, tick } from './game/engine';
+import { join, narrated, newGame, start, tick } from './game/engine';
 import { INTRO } from './game/story';
 import { view } from './game/view';
 import type { ClientMessage, ServerMessage } from './messages';
@@ -141,7 +141,7 @@ setInterval(() => {
   const narration = tick(game, Date.now());
   if (!narration) return;
   game.chat.push({ from: 'DM', text: `${name}'s turn timed out.` });
-  for (const text of narration) game.chat.push({ from: 'DM', text });
+  for (const text of narration) game.chat.push(narrated(text));
   broadcast();
 }, 1000);
 

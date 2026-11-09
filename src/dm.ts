@@ -7,6 +7,7 @@ import {
   type Dir,
   type GameState,
   hero,
+  narrated,
 } from './game/engine';
 import { ITEMS, type ItemId } from './game/items';
 import { VICTORY } from './game/story';
@@ -146,10 +147,13 @@ const textOf = (res: Anthropic.Beta.BetaMessage | null) =>
 
 // Answers the active player's chat, resolving any action through the engine
 export async function respond(state: GameState, token: string, text: string) {
-  const say = (line: string) => state.chat.push({ from: 'DM', text: line });
+  // Checked before acting so the killing blow counts
+  const fight = alive(state).length > 0;
+  const say = (line: string, combat = false) =>
+    state.chat.push({ from: 'DM', text: line, combat: combat || undefined });
   const report = (result: ActResult, story: string) => {
-    say(story || result.lines.join('\n\n'));
-    for (const line of result.narration) say(line);
+    say(story || result.lines.join('\n\n'), fight);
+    for (const line of result.narration) state.chat.push(narrated(line));
     if (state.phase === 'won') say(VICTORY);
   };
 

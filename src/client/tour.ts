@@ -1,4 +1,5 @@
 import { driver } from 'driver.js';
+import { holdSpeech } from './speech';
 
 const KEY = 'tour-seen';
 
@@ -9,6 +10,7 @@ export function startTour(): (() => void) | undefined {
   } catch {
     return;
   }
+  const release = holdSpeech();
   const tour = driver({
     popoverClass: 'dnd-tour',
     showProgress: true,
@@ -67,11 +69,16 @@ export function startTour(): (() => void) | undefined {
       },
     ],
     onDestroyed: () => {
+      release();
       try {
         localStorage.setItem(KEY, '1');
       } catch {}
     },
   });
   tour.drive();
-  return () => tour.destroy();
+  // onDestroyed is skipped if destroyed before the first step settles
+  return () => {
+    tour.destroy();
+    release();
+  };
 }

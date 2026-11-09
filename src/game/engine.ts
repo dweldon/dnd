@@ -71,8 +71,8 @@ export type GameState = {
   dmgScale: number;
   // Compact actions list
   log: string[];
-  // DM log, written by the server
-  chat: { from: string; text: string }[];
+  // DM log, written by the server; combat lines can be skipped by speech
+  chat: { from: string; text: string; combat?: true }[];
   // Recent sound cues; `to` limits one to a single hero
   events: { id: number; sound: Sound; to?: CharacterId }[];
   nextEvent: number;
@@ -625,6 +625,13 @@ function endCombat(state: GameState, player: Player) {
   sfx(state, 'calm');
   loot(state, player);
 }
+
+// Chat line for engine narration; all of it is combat except the wipe
+export const narrated = (text: string) => ({
+  from: 'DM',
+  text,
+  combat: text !== WIPE || undefined,
+});
 
 // Advances to the next standing player; monsters act after the last player
 function endTurn(state: GameState): string[] {

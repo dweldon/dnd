@@ -1,8 +1,8 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Sound } from '../game/engine';
 import type { View } from '../game/view';
+import { soundOn } from './settings';
 
-const MUTE_KEY = 'muted';
 const GAP = 0.15;
 const VOLUME = 0.15;
 
@@ -16,7 +16,7 @@ function unlock() {
   if (!ctx) {
     ctx = new AudioContext();
     master = ctx.createGain();
-    master.gain.value = muted ? 0 : VOLUME;
+    master.gain.value = soundOn.get() ? VOLUME : 0;
     master.connect(ctx.destination);
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = noiseBuf.getChannelData(0);
@@ -29,7 +29,11 @@ window.addEventListener('keydown', unlock);
 
 // Shared with speech
 export const audio = () => ctx;
-export const isMuted = () => muted;
+
+// Also silences sounds already queued
+soundOn.subscribe(() => {
+  if (master) master.gain.value = soundOn.get() ? VOLUME : 0;
+});
 
 // Gain envelope: quick attack, exponential decay
 function envelope(c: AudioContext, t: number, dur: number, gain: number) {
@@ -137,37 +141,10 @@ const SOUNDS: Record<Sound, (t: number) => void> = {
 
 // Queued so batched events don't play on top of each other
 function play(cue: Sound) {
-  if (ctx?.state !== 'running' || muted) return;
+  if (ctx?.state !== 'running' || !soundOn.get()) return;
   const t = Math.max(ctx.currentTime, nextAt);
   nextAt = t + GAP;
   SOUNDS[cue](t);
-}
-
-let muted = (() => {
-  try {
-    return localStorage.getItem(MUTE_KEY) === '1';
-  } catch {
-    return false;
-  }
-})();
-const listeners = new Set<() => void>();
-export const subscribe = (cb: () => void) => {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-};
-
-export function useMuted() {
-  const value = useSyncExternalStore(subscribe, isMuted);
-  const toggle = () => {
-    muted = !muted;
-    // Also silences sounds already queued
-    if (master) master.gain.value = muted ? 0 : VOLUME;
-    try {
-      localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
-    } catch {}
-    for (const cb of listeners) cb();
-  };
-  return [value, toggle] as const;
 }
 
 // Plays new events from each view

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { View } from '../game/view';
-import { audio, isMuted, subscribe } from './sounds';
+import { speechOn } from './settings';
+import { audio } from './sounds';
 
 const VOLUME = 0.9;
 // The API has no speaking rate; an audio element keeps pitch when sped up
@@ -12,21 +13,41 @@ let stop: (() => void) | null = null;
 // Bumped on reset so the old game's queued lines are dropped
 let epoch = 0;
 
-// Muting stops the line in progress
-subscribe(() => {
-  if (isMuted()) stop?.();
+// Only the newest actions are spoken so speech keeps up with play;
+// combat lines only from the newest one
+const KEEP = 2;
+let newest = 0;
+
+// Held while the tour is up so the DM doesn't talk over it
+let gate = Promise.resolve();
+
+// Turning speech off stops the line in progress
+speechOn.subscribe(() => {
+  if (!speechOn.get()) stop?.();
 });
 
-function say(text: string) {
+// Queued lines wait until release is called
+export function holdSpeech() {
+  let release = () => {};
+  gate = new Promise((r) => {
+    release = r;
+  });
+  return release;
+}
+
+// Pinned lines play even when their action is stale
+function say(text: string, batch: number, pinned: boolean, combat: boolean) {
   // Same gesture unlock as sound effects
-  if (audio()?.state !== 'running' || isMuted()) return;
+  if (audio()?.state !== 'running' || !speechOn.get()) return;
   const clip = fetch(`/speech?text=${encodeURIComponent(text)}`)
     .then((r) => (r.ok ? r.blob() : null))
     .catch(() => null);
   const mine = epoch;
   queue = queue.then(async () => {
     const blob = await clip;
-    if (!blob || isMuted() || mine !== epoch) return;
+    await gate;
+    if (!pinned && batch <= newest - (combat ? 1 : KEEP)) return;
+    if (!blob || !speechOn.get() || mine !== epoch) return;
     const url = URL.createObjectURL(blob);
     const el = new Audio(url);
     el.volume = VOLUME;
@@ -61,8 +82,14 @@ export function useSpeech(view: View | null, voice: boolean) {
     }
     // First view or a reset: skip what's already there
     if (last === null || total <= last || !voice) return;
-    for (const m of chat.slice(-Math.min(total - last, chat.length))) {
-      if (m.from === 'DM') say(m.text);
-    }
+    const lines = chat.slice(-Math.min(total - last, chat.length));
+    // One update holds one action's lines; player chat doesn't count
+    if (!lines.some((m) => m.from === 'DM')) return;
+    const batch = ++newest;
+    const first = total - lines.length;
+    // The intro is always line 0
+    lines.forEach((m, i) => {
+      if (m.from === 'DM') say(m.text, batch, first + i === 0, !!m.combat);
+    });
   }, [chat, total, voice]);
 }

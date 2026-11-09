@@ -18,7 +18,15 @@ function App() {
   if (view.phase === 'lobby' || !view.you) {
     return <Lobby view={view} error={error} send={send} />;
   }
-  return <Game view={view} thinking={thinking} error={error} send={send} />;
+  return (
+    <Game
+      view={view}
+      thinking={thinking}
+      voice={voice}
+      error={error}
+      send={send}
+    />
+  );
 }
 
 createRoot(document.getElementById('root') as HTMLElement).render(<App />);

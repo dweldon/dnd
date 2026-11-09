@@ -40,6 +40,35 @@ export function Panel({
   );
 }
 
+export function Toggle({
+  label,
+  on,
+  onChange,
+}: {
+  label: string;
+  on: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      className="flex cursor-pointer items-center gap-1.5 text-xs text-stone-300 hover:text-stone-100"
+      onClick={() => onChange(!on)}
+    >
+      <span
+        className={`relative h-4 w-7 rounded-full border transition-colors ${on ? 'border-amber-500 bg-amber-500/40' : 'border-stone-600 bg-stone-800'}`}
+      >
+        <span
+          className={`absolute top-0.5 left-0.5 size-2.5 rounded-full transition-transform ${on ? 'translate-x-3 bg-amber-200' : 'bg-stone-500'}`}
+        />
+      </span>
+      {label}
+    </button>
+  );
+}
+
 // Counts HP drops so a flash can replay on each hit
 function useHits(hp: number | undefined) {
   const prev = useRef(hp);

@@ -12,7 +12,7 @@ import { TITLE } from '../game/story';
 import type { Effect } from '../game/types';
 import type { View } from '../game/view';
 import { Compass } from './map';
-import { useMuted } from './sounds';
+import { soundOn, speechOn } from './settings';
 import { startTour } from './tour';
 import {
   art,
@@ -22,6 +22,7 @@ import {
   Portrait,
   ResetButton,
   type Send,
+  Toggle,
   Tooltip,
   useScrollToEnd,
   useSecretReset,
@@ -30,6 +31,7 @@ import {
 type Props = {
   view: View;
   thinking: boolean;
+  voice: boolean;
   error: string | null;
   send: Send;
 };
@@ -101,7 +103,7 @@ function dropZone({ fill, drag }: Shortcuts, on: Target, name: string) {
   };
 }
 
-export function Game({ view, thinking, error, send }: Props) {
+export function Game({ view, thinking, voice, error, send }: Props) {
   const myTurn = view.turn === view.you;
   const canAct = myTurn && !thinking;
   const [draft, setDraft] = useState('');
@@ -134,7 +136,7 @@ export function Game({ view, thinking, error, send }: Props) {
     <div className="flex flex-col lg:h-screen">
       {/* Keyed per turn so the flash replays each time */}
       {myTurn && <div key={view.turnEndsAt} className="turn-flash" />}
-      <Header view={view} thinking={thinking} send={send} />
+      <Header view={view} thinking={thinking} voice={voice} send={send} />
       <div className="grid min-h-0 flex-1 gap-3 p-3 lg:grid-cols-[17rem_auto_minmax(20rem,1fr)]">
         <div className="min-h-0 space-y-3 overflow-y-auto">
           <You view={view} sc={sc} />
@@ -177,10 +179,12 @@ function useNow() {
 function Header({
   view,
   thinking,
+  voice,
   send,
 }: {
   view: View;
   thinking: boolean;
+  voice: boolean;
   send: Send;
 }) {
   const now = useNow();
@@ -188,7 +192,8 @@ function Header({
   const clock = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
   const active = view.players.find((p) => p.characterId === view.turn);
   const reset = useSecretReset();
-  const [muted, toggleMute] = useMuted();
+  const [sound, setSound] = soundOn.use();
+  const [speech, setSpeech] = speechOn.use();
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-stone-800 px-4 py-2">
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: hidden reset gesture */}
@@ -207,14 +212,8 @@ function Header({
           <span className="text-stone-300">{active?.name}'s turn</span>
         )}
         <span className="text-sm text-stone-500 tabular-nums">{clock}</span>
-        <button
-          type="button"
-          className="cursor-pointer text-sm"
-          onClick={toggleMute}
-          title={muted ? 'Unmute sound and voice' : 'Mute sound and voice'}
-        >
-          {muted ? '🔇' : '🔊'}
-        </button>
+        <Toggle label="Sound" on={sound} onChange={setSound} />
+        {voice && <Toggle label="Speech" on={speech} onChange={setSpeech} />}
         {thinking && (
           <span className="text-sm text-sky-300 italic">DM is thinking…</span>
         )}
@@ -507,7 +506,7 @@ function Command({
   setDraft,
   input,
   fill,
-}: Omit<Props, 'view'> & {
+}: Omit<Props, 'view' | 'voice'> & {
   myTurn: boolean;
   draft: string;
   setDraft: (text: string) => void;
